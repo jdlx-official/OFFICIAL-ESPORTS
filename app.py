@@ -6,9 +6,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from flask_sqlalchemy import SQLAlchemy
 from flask_admin import Admin
 from flask_admin.contrib.sqla import ModelView
-from sqlalchemy import text
-from flask import render_template
-from flask_wtf.csrf import CSRFProtect, generate_csrf
+from flask_wtf import CSRFProtect
 from flask_migrate import Migrate
 from itsdangerous import URLSafeTimedSerializer
 from flask_mail import Mail, Message
@@ -25,12 +23,9 @@ import time
 from sqlalchemy import func
 from apscheduler.schedulers.background import BackgroundScheduler
 from threading import Thread
-from functools import wraps
-from flask import session, redirect, url_for, flash
-from datetime import datetime, timedelta
-import pytesseract
-from PIL import Image
-import re
+from sqlalchemy import text
+
+
 # ---------- App init ----------
 app = Flask(__name__)
 
@@ -43,9 +38,6 @@ with open("secret.key", "r") as f:
     app.secret_key = f.read().strip()
 
 csrf = CSRFProtect(app)
-@app.route("/get_csrf")
-def get_csrf():
-    return generate_csrf()
 
 # ---------- LOGGING ----------
 log_dir = os.path.join(app.root_path, "logs")
@@ -67,7 +59,8 @@ app.config['MAIL_PORT'] = 587
 app.config['MAIL_USE_TLS'] = True
 app.config['MAIL_USE_SSL'] = False
 app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME', 'officialesports.care@gmail.com')
-app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD','mfwviucicjkyvndc')  # MUST be set in env
+app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
+  # MUST be set in env
 app.config['MAIL_DEFAULT_SENDER'] = ('OFFICIAL ESPORTS', 'officialesports.care@gmail.com')
 
 mail = Mail(app)
@@ -81,33 +74,7 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 
-# ============================
-# ⭐ ONE-TIME DB FIX BLOCK ⭐
-# ============================
-
-
-
 # ---------- MODELS ----------
-
-class AdminLog(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    admin_name = db.Column(db.String(100))
-    action = db.Column(db.String(200))
-    tournament_id = db.Column(db.Integer, nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
-class MatchResults(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
-    tournament_id = db.Column(db.Integer, db.ForeignKey('tournament.id'))
-    kills = db.Column(db.Integer, default=0)
-    rank = db.Column(db.Integer, default=0)
-    screenshot = db.Column(db.String(200))
-    verified = db.Column(db.Boolean, default=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
-    points = db.Column(db.Integer, default=0)   # <-- बस इतना ही
-
 class Wallet(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
@@ -146,7 +113,7 @@ class Tournament(db.Model):
     location = db.Column(db.String(100))
     date = db.Column(db.String(50))
     entry_fee = db.Column(db.String(50))
-    prize_pool = db.Column(db.Integer)
+    prize_pool = db.Column(db.String(50))
     image = db.Column(db.String(100))
     max_players = db.Column(db.Integer)
     current_players = db.Column(db.Integer, default=0)
@@ -158,45 +125,18 @@ class Tournament(db.Model):
     notes = db.Column(db.Text)
     room_id = db.Column(db.String(50))
     room_password = db.Column(db.String(50))
-    duration = db.Column(db.Integer, default=30)
-    result_published = db.Column(db.Boolean, default=False)
-    notified = db.Column(db.Boolean, default=False)
-    map = db.Column(db.String(50))
-    mode = db.Column(db.String(50))
-    type = db.Column(db.String(50))
-    max_teams = db.Column(db.Integer)
-    game_name = db.Column(db.String(50))   # BGMI / FREE FIRE
-    map_name = db.Column(db.String(50))    # Erangel / Livik / TDM
-    mode = db.Column(db.String(20))        # solo / duo / squad
-    game_type = db.Column(db.String(10))   # fpp / tpp
-    match_link = db.Column(db.String(255), nullable=True)
-
-    duration_minutes = db.Column(db.Integer)  # 60 / 30 / 20
-
 
 
 class Participation(db.Model):
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'tournament_id', name='uq_user_tournament'),
+    )
+
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
-    tournament_id = db.Column(db.Integer, db.ForeignKey('tournament.id'))
-
-    team_name = db.Column(db.String(120))
-    captain_name = db.Column(db.String(120))
-    captain_bgmi_id = db.Column(db.String(50))
-
-    p2_name = db.Column(db.String(120))
-    p2_id = db.Column(db.String(50))
-    p3_name = db.Column(db.String(120))
-    p3_id = db.Column(db.String(50))
-    p4_name = db.Column(db.String(120))
-    p4_id = db.Column(db.String(50))
-
-    phone = db.Column(db.String(20))
-    email = db.Column(db.String(100))
-
-    status = db.Column(db.String(20), default="joined")
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    tournament_id = db.Column(db.Integer, db.ForeignKey('tournament.id'), nullable=False)
+    status = db.Column(db.String(20), default='joined')
     joined_at = db.Column(db.DateTime, default=datetime.utcnow)
-
 
 class Ad(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -218,31 +158,6 @@ class WithdrawRequest(db.Model):
     status = db.Column(db.String(20), default="pending")
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-class TournamentRegistration(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    tournament_id = db.Column(db.Integer, db.ForeignKey('tournament.id'))
-
-    team_name = db.Column(db.String(120))
-    captain_name = db.Column(db.String(120))
-    captain_email = db.Column(db.String(120))
-    captain_bgmi_id = db.Column(db.String(50))
-
-    p2_name = db.Column(db.String(120))
-    p2_id = db.Column(db.String(50))
-    p3_name = db.Column(db.String(120))
-    p3_id = db.Column(db.String(50))
-    p4_name = db.Column(db.String(120))
-    p4_id = db.Column(db.String(50))
-
-    mode = db.Column(db.String(20))
-    map = db.Column(db.String(20))
-    phone = db.Column(db.String(20))
-
-    holder = db.Column(db.String(120))
-    account_number = db.Column(db.String(120))
-    ifsc = db.Column(db.String(20))
-
-
 # ---------- Audit Log ----------
 class AuditLog(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -255,78 +170,25 @@ def log_action(user_id, action):
     db.session.add(entry)
     db.session.commit()
 
-
-
-
 # ---------- APSCHEDULER ----------
 scheduler = BackgroundScheduler()
 scheduler.start()
 
 def auto_fix_wallets():
-    with app.app_context():
-        wallets = Wallet.query.all()
-        for w in wallets:
-            if w.balance < 0:
-                w.balance = 0
-        db.session.commit()
+    wallets = Wallet.query.all()
+    for w in wallets:
+        if w.balance < 0:
+            w.balance = 0
+    db.session.commit()
 
 def auto_fix_transactions():
-    with app.app_context():
-        tx = Transaction.query.filter(Transaction.amount == None).all()
-        for t in tx:
-            t.amount = "0"
-        db.session.commit()
+    tx = Transaction.query.filter(Transaction.amount == None).all()
+    for t in tx:
+        t.amount = "0"
+    db.session.commit()
 
 scheduler.add_job(auto_fix_wallets, "interval", minutes=30)
 scheduler.add_job(auto_fix_transactions, "interval", minutes=60)
-
-
-
-
-def get_current_user():
-    """Return logged-in user object from session."""
-    if 'username' not in session:
-        return None
-    return User.query.filter_by(username=session['username']).first()
-
-@app.route("/whoami")
-def whoami():
-    user = get_current_user()
-    if not user:
-        return jsonify({"logged_in": False})
-    return jsonify({
-        "logged_in": True,
-        "username": user.username,
-        "email": user.email,
-        "mobile": user.mobilenumber
-    })
-def admin_required(f):
-    @wraps(f)
-    def wrapper(*args, **kwargs):
-        if not session.get("admin_logged_in"):
-            flash("Admin login required", "error")
-            return redirect(url_for("admin_login"))
-        return f(*args, **kwargs)
-    return wrapper
-
-def user_already_joined(user_id, tournament_id):
-    return Participation.query.filter_by(
-        user_id=user_id,
-        tournament_id=tournament_id
-    ).first() is not None
-
-def log_admin(action, tournament_id=None):
-    admin_name = session.get("admin_username", "Unknown Admin")
-    log = AdminLog(
-        admin_name=admin_name,
-        action=action,
-        tournament_id=tournament_id
-    )
-    db.session.add(log)
-    db.session.commit()
-
-
-
 
 # ---------------- Admin Panel Setup ----------------
 admin = Admin(app, name='Admin Panel', template_mode='bootstrap3', url='/flask_admin')
@@ -344,19 +206,41 @@ app.config['PAYU_SALT'] = PAYU_SALT
 app.config['PAYU_BASE_URL'] = PAYU_URL
 
 # ---------------- Helper functions ----------------
+def get_current_user():
+    if 'username' not in session:
+        return None
+    return User.query.filter_by(username=session['username']).first()
+# ---------- SELF-HEAL / REPAIR UTILITIES ----------
 def ensure_user_wallets():
     """Create Wallet rows for users that don't have one."""
     try:
-        sub = db.session.query(Wallet.user_id)
-        missing = db.session.query(User).filter(~User.id.in_(sub)).all()
+        from app import Wallet  # change if your model is in same file
+    except Exception:
+        return
+
+    try:
+        # 🔧 FIX 1: subquery banana zaroori hai
+        sub = db.session.query(Wallet.user_id).subquery()
+
+        missing = db.session.query(User).filter(
+            ~User.id.in_(sub)
+        ).all()
+
         if missing:
-            app.logger.info("Self-heal: creating wallets for %d users", len(missing))
+            app.logger.info(
+                "Self-heal: creating wallets for %d users", len(missing)
+            )
             for u in missing:
                 w = Wallet(user_id=u.id, balance=0)
                 db.session.add(w)
+
             db.session.commit()
+
     except Exception as e:
+        # 🔧 FIX 2: rollback add kiya (silent DB bugs se bachne ke liye)
+        db.session.rollback()
         app.logger.error("ensure_user_wallets error: %s", str(e))
+
 
 
 def reconcile_tournament_counts():
@@ -397,17 +281,6 @@ def payu_hash_for_request(key, txnid, amount, productinfo, firstname, email, sal
 def payu_hash_verify_response(salt, status, key, txnid, amount, productinfo, firstname, email):
     seq = f"{salt}|{status}|||||||||||{email}|{firstname}|{productinfo}|{amount}|{txnid}|{key}"
     return hashlib.sha512(seq.encode('utf-8')).hexdigest().lower()
-
-def extract_kills(text):
-    import re
-    match = re.search(r"Kills?\s*[:\-]?\s*(\d+)", text, re.IGNORECASE)
-    return int(match.group(1)) if match else 0
-
-def extract_rank(text):
-    import re
-    match = re.search(r"Rank\s*[:\-]?\s*(\d+)", text, re.IGNORECASE)
-    return int(match.group(1)) if match else 0
-
 
 # ---------------- ROUTES (OLD payment flow) ----------------
 @app.route("/add_money", methods=["POST"])
@@ -678,47 +551,18 @@ def logout():
 # Home (logged / public)
 @app.route('/home')
 def home_logged():
-    if 'username' not in session:
+    if 'username' in session:
+        user = get_current_user()
+        tournaments = Tournament.query.all()
+        return render_template(
+            "home.html",
+            user=user,
+            username=session['username'],
+            email=session.get('email'),
+            tournaments=tournaments
+        )
+    else:
         return redirect(url_for('login'))
-
-    user = get_current_user()
-
-    tournaments = Tournament.query.all()
-
-    for t in tournaments:
-        # joined flag
-        t.joined = Participation.query.filter_by(
-            user_id=user.id,
-            tournament_id=t.id
-        ).first() is not None
-
-        # JS timer ke liye
-        if t.start_time:
-            t.start_ts = int(t.start_time.timestamp() * 1000)
-            t.end_ts = int((t.start_time + timedelta(minutes=t.duration or 30)).timestamp() * 1000)
-
-    wallet = get_or_create_wallet(user.id)
-    transactions = Transaction.query.filter_by(
-        user_id=user.id
-    ).order_by(Transaction.created_at.desc()).all()
-
-    ongoing = [t for t in tournaments if t.status == "ongoing"]
-    upcoming = [t for t in tournaments if t.status == "upcoming"]
-    finished = [t for t in tournaments if t.status == "completed"]
-
-    return render_template(
-        "home.html",
-        user=user,
-        username=user.username,
-        email=user.email,
-        tournaments=tournaments,
-        ongoing=ongoing,
-        upcoming=upcoming,
-        finished=finished,
-        wallet=wallet,
-        transactions=transactions
-    )
-
 
 # User requests withdraw -> create WithdrawRequest (do NOT deduct balance yet)
 @app.route("/withdraw_request", methods=["POST"])
@@ -762,7 +606,6 @@ def withdraw_request():
     return redirect(url_for("home"))
 
 @app.route("/admin/withdraws")
-@admin_required
 def view_withdraws():
     if not session.get("admin_logged_in"):
         return redirect(url_for("admin_login"))
@@ -772,47 +615,103 @@ def view_withdraws():
 
 # Admin: view withdraws (already present)
 # Approve a withdraw -> deduct wallet, create transaction, mark request approved
-@app.route("/admin/withdraw_approve/<int:id>")
-@admin_required
-def withdraw_approve(id):
+from datetime import datetime
+
+@app.route("/admin/withdraw/approve/<int:id>")
+def approve_withdraw(id):
     if not session.get("admin_logged_in"):
         return redirect(url_for("admin_login"))
 
-    req = WithdrawRequest.query.get_or_404(id)
+    try:
+        # 🔹 STEP 1: Try WithdrawRequest table
+        req = WithdrawRequest.query.get(id)
 
-    if req.status != "pending":
-        flash("This withdraw request is already processed.", "info")
-        return redirect(url_for("view_withdraws"))
+        if req:
+            if req.status != "pending":
+                flash("This withdraw request is already processed.", "info")
+                return redirect("/admin/withdraws")
 
-    wallet = Wallet.query.filter_by(user_id=req.user_id).first()
-    if not wallet or wallet.balance < req.amount:
-        flash("❌ User has insufficient balance to approve this withdraw.", "error")
-        return redirect(url_for("view_withdraws"))
+            wallet = (
+                Wallet.query
+                .filter_by(user_id=req.user_id)
+                # .with_for_update()
+                .first()
+            )
 
-    # Deduct now
-    wallet.balance -= req.amount
+            if not wallet or wallet.balance < req.amount:
+                flash("❌ User has insufficient balance.", "error")
+                return redirect("/admin/withdraws")
 
-    # Transaction record
-    t = Transaction(
-        user_id=req.user_id,
-        amount=str(req.amount),
-        txn_id="WD" + str(req.id),
-        status="success",
-        type="withdraw",
-        created_at=datetime.utcnow()
-    )
+            # ✅ FIX: single safe deduction
+            wallet.balance = max(0, wallet.balance - req.amount)
 
-    req.status = "approved"
-    db.session.add(t)
-    db.session.commit()
+            txn = Transaction(
+                user_id=req.user_id,
+                amount=req.amount,
+                txn_id=f"WD{req.id}",
+                status="success",
+                type="withdraw",
+                created_at=datetime.utcnow()
+            )
+            db.session.add(txn)
 
-    flash("Withdraw Approved!", "success")
-    return redirect(url_for("view_withdraws"))
+            req.status = "approved"
+            if hasattr(req, "approved_at"):
+                req.approved_at = datetime.utcnow()
+
+            db.session.commit()
+            flash("Withdraw Approved!", "success")
+            return redirect("/admin/withdraws")
+
+        # 🔹 STEP 2: Fallback to Withdraw table
+        w = Withdraw.query.get_or_404(id)
+
+        if w.status != "pending":
+            flash("This withdraw request is already processed.", "info")
+            return redirect("/admin/withdraws")
+
+        wallet = (
+            Wallet.query
+            .filter_by(user_id=w.user_id)
+            # .with_for_update()
+            .first()
+        )
+
+        if not wallet or wallet.balance < w.amount:
+            flash("❌ User has insufficient balance.", "error")
+            return redirect("/admin/withdraws")
+
+        # ✅ FIX: indentation + double deduction removed safely
+        wallet.balance = max(0, wallet.balance - w.amount)
+
+        txn = Transaction(
+            user_id=w.user_id,
+            amount=w.amount,
+            txn_id=f"WD{w.id}",
+            status="success",
+            type="withdraw",
+            created_at=datetime.utcnow()
+        )
+        db.session.add(txn)
+
+        w.status = "approved"
+        if hasattr(w, "approved_at"):
+            w.approved_at = datetime.utcnow()
+
+        db.session.commit()
+        flash("Withdraw Approved!", "success")
+
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error("approve_withdraw error: %s", str(e))
+        flash("❌ Something went wrong.", "error")
+
+    return redirect("/admin/withdraws")
+
 
 
 # Reject withdraw -> mark rejected (no deduction), optionally notify user
 @app.route("/admin/withdraw_reject/<int:id>")
-@admin_required
 def withdraw_reject(id):
     if not session.get("admin_logged_in"):
         return redirect(url_for("admin_login"))
@@ -831,7 +730,6 @@ def withdraw_reject(id):
 
 
 
-
 @app.route('/')
 def home():
     try:
@@ -842,77 +740,39 @@ def home():
 
     try:
         tournaments = Tournament.query.all()
-
-        # 🔹 ADD timestamps for JS (DO NOT REMOVE)
-        now = datetime.utcnow()
-
-        for t in tournaments:
-            if not t.start_time:
-                t.status = "upcoming"
-                t.start_ts = 0
-                t.end_ts = 0
-                continue
-
-            duration = t.duration_minutes or 60
-            end_time = t.start_time + timedelta(minutes=duration)
-
-            if t.start_time <= now <= end_time:
-                t.status = "ongoing"
-            elif now > end_time:
-                t.status = "completed"
-            else:
-                t.status = "upcoming"
-
-            t.start_ts = int(t.start_time.timestamp()) if t.start_time else 0
-            t.end_ts = int(end_time.timestamp()) if end_time else 0
-
-        # 🔹 tournament status lists
         ongoing = [t for t in tournaments if getattr(t, 'status', '') == 'ongoing']
-        upcoming = [t for t in tournaments if getattr(t, 'status', '') == 'upcoming']
-        finished = [t for t in tournaments if getattr(t, 'status', '') == 'completed']
-
     except Exception as e:
         tournaments = []
         ongoing = []
-        upcoming = []
-        finished = []
         print("⚠️ Warning: Tournament table error:", e)
 
     page_type = 'home'
-
-    # 🔹 logged-in user
     if 'username' in session:
         return render_template(
-            'home.html',
-            user=get_current_user(),
-            username=session['username'],
-            email=session.get('email'),
-            ads=ads_data,
-            tournaments=tournaments,
-            ongoing=ongoing,
-            upcoming=upcoming,
-            finished=finished,
-            page_type=page_type
+    'home.html',
+    user=get_current_user(),
+    username=session['username'],
+    email=session.get('email'),
+    ads=ads_data,
+    tournaments=tournaments,
+    ongoing=ongoing,
+    page_type=page_type
+)
+    else:
+        return render_template(
+    'home.html',
+    user=None,
+    ads=ads_data,
+    tournaments=tournaments,
+    ongoing=ongoing,
+    page_type=page_type
+
         )
 
-    # 🔹 guest user
-    return render_template(
-        'home.html',
-        user=None,
-        ads=ads_data,
-        tournaments=tournaments,
-        ongoing=ongoing,
-        upcoming=upcoming,
-        finished=finished,
-        page_type=page_type
-    )
-
-
-# 🔹 Search user (API)
+# Search user (API)
 @app.route("/search_user")
 def search_user():
     query = request.args.get("q", "").strip()
-
     if not query:
         return jsonify([])
 
@@ -934,49 +794,11 @@ def search_user():
 
     return jsonify(result)
 
-
-@app.route("/upload_result", methods=["POST"])
-def upload_result():
-    user = get_current_user()
-    tid = request.form.get("tournament_id")
-    file = request.files.get("screenshot")
-
-    if not file:
-        flash("No screenshot uploaded!", "error")
-        return redirect(request.referrer)
-
-    filename = f"{user.id}_{tid}_{int(time.time())}.jpg"
-    path = os.path.join("static/results", filename)
-    file.save(path)
-
-    # ---------- OCR ----------
-    
-
-    text = pytesseract.image_to_string(Image.open(path))
-
-    kills = extract_kills(text)
-    rank = extract_rank(text)
-
-    result = MatchResults(
-        user_id=user.id,
-        tournament_id=tid,
-        kills=kills,
-        rank=rank,
-        screenshot=filename,
-        verified=False
-    )
-    db.session.add(result)
-    db.session.commit()
-
-    flash("Result submitted! Wait for admin review.", "success")
-    return redirect(f"/admin/tournament/{tid}")
-
 # Admin routes
 ADMIN_USERNAME = os.environ.get('ADMIN_USERNAME', 'admin')
-ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'jaydevlaxmi')
+ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'change_this!')
 
 @app.route("/admin_login", methods=["GET","POST"])
-
 def admin_login():
     if request.method == 'POST':
         username = request.form["username"]
@@ -989,35 +811,10 @@ def admin_login():
             return redirect(url_for("admin_login"))
     return render_template("admin_login.html")
 
-from PIL import Image
-import os
-
-def compress_image(image_path, max_width=1200, quality=70):
-    try:
-        img = Image.open(image_path)
-
-        # Resize if width is bigger
-        if img.width > max_width:
-            ratio = max_width / img.width
-            new_height = int(img.height * ratio)
-            img = img.resize((max_width, new_height), Image.LANCZOS)
-
-        # Save compressed version
-        img.save(image_path, optimize=True, quality=quality)
-
-        print("✔ Image compressed:", image_path)
-    except Exception as e:
-        print("❌ Image compression failed:", e)
-
-
-@app.route("/admin", methods=["GET","POST"])
-@admin_required
+@app.route("/admin", methods=["GET", "POST"])
 def admin_panel():
-    
     if not session.get("admin_logged_in"):
         return redirect(url_for("admin_login"))
-    
-    results = MatchResults.query.order_by(MatchResults.id.desc()).all()
 
     search_query = request.args.get("search", "").strip()
 
@@ -1039,12 +836,6 @@ def admin_panel():
         total_ads = 0
         print("⚠️ Warning: Ad table not found or error:", e)
 
-    # ⭐⭐⭐ FIX: Withdraw Requests Load ⭐⭐⭐
-    try:
-        withdraws = WithdrawRequest.query.all()
-    except:
-        withdraws = []
-
     total_users = User.query.count()
     active_users = User.query.filter_by(is_active=True).count()
     inactive_users = total_users - active_users
@@ -1054,8 +845,6 @@ def admin_panel():
     return render_template(
         "admin.html",
         users=users_data,
-        withdraws=withdraws,
-        results=results,
         tournaments=tournaments_data,
         ads=ads_data,
         total_users=total_users,
@@ -1066,7 +855,6 @@ def admin_panel():
         current_online=current_online,
         search_query=search_query
     )
-
 
 # User CRUD
 @app.route("/delete_user/<int:id>", methods=["GET","POST"])
@@ -1118,223 +906,84 @@ def tournaments():
     )
 
 @app.route("/admin/tournament/<int:id>")
-@admin_required
 def tournament_detail(id):
     t = Tournament.query.get_or_404(id)
-
-    participants = Participation.query.filter_by(tournament_id=id).all()
-    results = MatchResults.query.filter_by(tournament_id=id).all()
-
-    # Prepare user info for fast access
-    users_dict = {}
-    for p in participants:
-        u = User.query.get(p.user_id)
-        users_dict[p.user_id] = u
-
-    return render_template("admin_tournament_detail.html",
-                           t=t,
-                           participants=participants,
-                           results=results,
-                           users_dict=users_dict,
-                           registrations=participants)
-
-@app.route("/tournament_register/<int:t_id>", methods=["GET"])
-def tournament_register(t_id):
-    t = Tournament.query.get_or_404(t_id)
-    return render_template("registration.html", tournament=t)
-
-@app.route("/tournament_register/<int:t_id>", methods=["POST"])
-def submit_registration(t_id):
-    t = Tournament.query.get_or_404(t_id)
-    
-    user = get_current_user()
-    if not user:
-        flash("Please login first!")
-        return redirect(url_for("login"))
-
-    p = Participation(
-        user_id=user.id,
-        tournament_id=t_id,
-        username=request.form.get("teamName"),
-        bgmi_id=request.form.get("capID"),
-        email=request.form.get("email"),
-        phone=request.form.get("phone"),
-        status="joined"
-    )
-    data = {
-        "team_name": request.form.get("teamName"),
-        "captain_name": request.form.get("capName"),
-        "captain_email": request.form.get("capEmail"),
-        "captain_bgmi_id": request.form.get("capID"),
-        "p2_name": request.form.get("p2Name"),
-        "p2_id": request.form.get("p2ID"),
-        "p3_name": request.form.get("p3Name"),
-        "p3_id": request.form.get("p3ID"),
-        "p4_name": request.form.get("p4Name"),
-        "p4_id": request.form.get("p4ID"),
-        "mode": request.form.get("mode"),
-        "map": request.form.get("map"),
-        "phone": request.form.get("phone"),
-        "holder": request.form.get("holder"),
-        "account_number": request.form.get("accNum"),
-        "ifsc": request.form.get("ifsc"),
-        "tournament_id": t_id
-    }
-
-    reg = TournamentRegistration(**data)
-    db.session.add(reg)
-    db.session.commit()
-
-    flash("Registration completed!", "success")
-    return redirect(url_for("home_logged"))
-
-@app.route("/admin/finish_tournament/<int:id>")
-@admin_required
-def finish_tournament(id):
-    t = Tournament.query.get(id)
-    t.status = "completed"
-    db.session.commit()
-
-    # SEND MAIL TO ALL PARTICIPANTS
-    participants = Participation.query.filter_by(tournament_id=id).all()
-
-    for p in participants:
-        send_mail(p.email, f"Tournament {t.name} results are ready!")
-
-    flash("Tournament marked as completed & notifications sent!")
-    return redirect(url_for("admin_panel"))
-
-def send_mail(to, msg_text):
-    import smtplib
-    from email.mime.text import MIMEText
-
-    msg = MIMEText(msg_text)
-    msg["Subject"] = "Tournament Update"
-
-    server = smtplib.SMTP("smtp.gmail.com", 587)
-    server.starttls()
-    server.login("YOUR EMAIL", "YOUR APP PASSWORD")
-    server.sendmail("YOUR EMAIL", to, msg.as_string())
-    server.quit()
-
-
-@app.route("/upload_match_result", methods=["POST"])
-def upload_match_result():
-    p_id = request.form.get("participation_id")
-    p = Participation.query.get(p_id)
-
-    file = request.files.get("screenshot")
-    if file:
-        filename = str(int(time.time())) + "_" + file.filename
-        file.save("static/results/" + filename)
-        p.screenshot = filename
-        p.status = "submitted"
-
-    db.session.commit()
-    flash("Screenshot Uploaded!")
-    return redirect(url_for("home_logged"))
-
+    return render_template("admin_tournament_detail.html", t=t)
 
 @app.route("/admin/update_room/<int:id>", methods=["POST"])
-@admin_required
 def update_room(id):
     t = Tournament.query.get_or_404(id)
-
-    if t.status not in ["upcoming", "ongoing"]:
-        flash("Room details can only be updated before or during the match.", "error")
-        return redirect(url_for("tournament_detail", id=id))
-
-    old_room_id = t.room_id
-    old_room_pass = t.room_password
-
     t.room_id = request.form.get("room_id")
     t.room_password = request.form.get("room_password")
     db.session.commit()
-
-    # Log only room update
-    log_admin(f"Updated room details (Old: {old_room_id}/{old_room_pass}) → (New: {t.room_id}/{t.room_password})", t.id)
-
-    flash("Room details updated successfully!", "success")
+    flash("Room details updated successfully!")
     return redirect(url_for("tournament_detail", id=id))
 
-
-
 # Tournament join/delete/edit/add
+from sqlalchemy.exc import IntegrityError
+
+@csrf.exempt
 @app.route('/join_tournament/<int:tournament_id>', methods=['POST'])
 def join_tournament(tournament_id):
-
-    # 🔐 Login check
     user = get_current_user()
     if not user:
         flash("Please login to join the tournament.", "error")
         return redirect(url_for('login'))
 
-    # 🎮 Tournament check
-    tournament = Tournament.query.get_or_404(tournament_id)
+    try:
+        # 🔒 ATOMIC TRANSACTION START
+        tournament = (
+            db.session.query(Tournament)
+            .filter(Tournament.id == tournament_id)
+            #.with_for_update()
+            .first()
+        )
 
-    # ❌ Already joined check (covers both tables)
-    existing_participation = Participation.query.filter_by(
-        user_id=user.id,
-        tournament_id=tournament.id
-    ).first()
+        if not tournament:
+            flash("Tournament not found!", "error")
+            return redirect(url_for('home_logged'))
 
-    existing_join = TournamentJoin.query.filter_by(
-        user_id=user.id,
-        tournament_id=tournament.id
-    ).first()
+        # 🔁 Duplicate join check
+        existing = Participation.query.filter_by(
+            user_id=user.id,
+            tournament_id=tournament.id
+        ).first()
 
-    if existing_participation or existing_join:
-        flash("You have already joined this tournament.", "info")
-        return redirect(url_for('home'))
+        if existing:
+            flash("You have already joined this tournament.", "info")
+            return redirect(url_for('home_logged'))
 
-    # ❌ Max players limit check
-    if tournament.max_players and tournament.current_players >= tournament.max_players:
-        flash("Tournament is already full!", "error")
-        return redirect(url_for('home'))
+        current_players = tournament.current_players or 0
+        max_players = tournament.max_players
 
-    # 💰 Entry fee
-    entry_fee = int(tournament.entry_fee or 0)
+        # 🚫 Full lobby check
+        if max_players is not None and current_players >= max_players:
+            flash("Tournament is already full!", "error")
+            return redirect(url_for('home_logged'))
 
-    # ❌ Wallet balance check
-    if user.wallet.balance < entry_fee:
-        flash("Insufficient wallet balance", "error")
-        return redirect(url_for('walletpage'))
+        # ✅ Join
+        participation = Participation(
+            user_id=user.id,
+            tournament_id=tournament.id,
+            status='joined'
+        )
 
-    # =========================
-    # 💰 ENTRY FEE AUTO DEDUCT
-    # =========================
-    user.wallet.balance -= entry_fee
+        tournament.current_players = current_players + 1
 
-    txn = Transaction(
-        user_id=user.id,
-        amount=entry_fee,
-        type="entry_fee",
-        status="success"
-    )
+        db.session.add(participation)
+        db.session.commit()
 
-    # 👤 Join records (both systems preserved)
-    participation = Participation(
-        user_id=user.id,
-        tournament_id=tournament.id,
-        status='joined'
-    )
+        flash("Joined tournament successfully!", "success")
 
-    join = TournamentJoin(
-        user_id=user.id,
-        tournament_id=tournament.id
-    )
+    except IntegrityError:
+        db.session.rollback()
+        flash("Join failed due to concurrent request. Please try again.", "error")
 
-    # 🔢 Update players count safely
-    tournament.current_players = (tournament.current_players or 0) + 1
+    except Exception as e:
+        db.session.rollback()
+        flash("Something went wrong. Please try again.", "error")
 
-    db.session.add(txn)
-    db.session.add(participation)
-    db.session.add(join)
-    db.session.commit()
-
-    flash("Joined tournament successfully!", "success")
-    return redirect(url_for('home'))
-
+    return redirect(url_for('home_logged'))
 
 
 @app.route("/delete_tournament/<int:id>", methods=["GET","POST"])
@@ -1345,31 +994,37 @@ def delete_tournament(id):
     flash(f"Tournament {t.name} deleted","success")
     return redirect(url_for("admin_panel"))
 
-
 @app.route("/edit_tournament/<int:id>", methods=["POST"])
 def edit_tournament(id):
     t = Tournament.query.get_or_404(id)
 
+    # Update normal fields
     t.name = request.form["name"]
     t.location = request.form["location"]
     t.date = request.form["date"]
     t.entry_fee = request.form["entry_fee"]
     t.prize_pool = request.form["prize_pool"]
 
+    # Handle image upload safely
     image_file = request.files.get("image")
 
-    if image_file and image_file.filename:
-        filename = secure_filename(image_file.filename)
+    if image_file and image_file.filename.strip() != "":
+        # unique filename
+        filename = datetime.now().strftime("%Y%m%d%H%M%S") + "_" + secure_filename(image_file.filename)
         image_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+
+        # save file
         image_file.save(image_path)
 
-        # ⭐ AUTO COMPRESS IMAGE
-        compress_image(image_path)
+        # update DB
+        t.image = filename  # store new image name
+        print("✔ New image saved:", filename)
 
-        t.image = filename
+    else:
+        print("ℹ No new image uploaded — keeping old image:", t.image)
 
     db.session.commit()
-    flash(f"Tournament {t.name} updated", "success")
+    flash(f"Tournament {t.name} updated successfully!", "success")
     return redirect(url_for("admin_panel"))
 
 
@@ -1380,308 +1035,42 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 @app.route("/add_tournament", methods=["POST"])
 def add_tournament():
+    image_file = request.files.get("image")
 
-    game_name = request.form.get("game_name")
-    map_name = request.form.get("map_name")
-    mode = request.form.get("mode")
+    # SAFE default
+    filename = None
 
-    # validation
-    if not game_name or not map_name or not mode:
-        flash("Game, Map and Mode are required", "error")
-        return redirect(url_for("admin.index"))  # ✅ FIX HERE
+    # If image uploaded
+    if image_file and image_file.filename:
+        # Generate unique filename
+        filename = datetime.now().strftime("%Y%m%d%H%M%S") + "_" + secure_filename(image_file.filename)
 
-    tournament_name = f"{game_name} | {mode.upper()} | {map_name}"
+        # Save file
+        image_file.save(os.path.join(app.config["UPLOAD_FOLDER"], filename))
 
-    start_time_raw = request.form.get("start_time")
-    start_time = datetime.strptime(start_time_raw, "%Y-%m-%dT%H:%M")
+    # Max players conversion
+    max_players_raw = request.form.get('max_players', '0').strip()
+    max_players = int(max_players_raw) if max_players_raw.isdigit() else 0
 
-    tournament = Tournament(
-        name=tournament_name,
-        desc=request.form.get("desc"),
-        game_name=game_name,
-        map=map_name,
-        mode=mode,
-        entry_fee=request.form.get("entry_fee"),
-        prize_pool=request.form.get("prize_pool"),
-        max_players=request.form.get("max_players"),
-        start_time=start_time,
-        image=request.form.get("image"),
+    new_tournament = Tournament(
+        name=request.form['name'],
+        desc=request.form.get('desc'),
+        location=request.form.get('location'),
+        date=request.form.get('date'),
+        entry_fee=request.form.get('entry_fee'),
+        prize_pool=request.form.get('prize_pool'),
+        image=filename,   # this is safe now
+        max_players=max_players,
         current_players=0,
-        status="upcoming"
+        start_time=datetime.strptime(request.form['start_time'], "%Y-%m-%dT%H:%M") if request.form.get('start_time') else None,
+        end_time=datetime.strptime(request.form['end_time'], "%Y-%m-%dT%H:%M") if request.form.get('end_time') else None,
     )
 
-    db.session.add(tournament)
+    db.session.add(new_tournament)
     db.session.commit()
 
-    flash("Tournament added successfully", "success")
-    return redirect(url_for("admin.index"))  # ✅ FIX HERE
-
-
-
-def auto_update_tournament_status():
-    now = datetime.utcnow()
-    tournaments = Tournament.query.all()
-
-    for t in tournaments:
-        if not t.start_time:
-            continue
-
-        duration = t.duration or 30
-        start = t.start_time
-        end = start + timedelta(minutes=duration)
-
-        if t.status == "upcoming" and start <= now < end:
-            t.status = "ongoing"
-
-        elif t.status == "ongoing" and now >= end:
-            t.status = "completed"
-
-    db.session.commit()
-
-
-
-@app.before_request
-def before_request_func():
-    auto_update_tournament_status()
-
-@app.route("/upload_screenshot", methods=["POST"])
-def upload_screenshot():
-    user = get_current_user()
-    if not user:
-        flash("Login required to upload screenshot.", "error")
-        return redirect(url_for("login"))
-
-    t_id = int(request.form.get("tournament_id"))
-    t = Tournament.query.get_or_404(t_id)
-
-    # ✅ 1. User joined check
-    participation = Participation.query.filter_by(
-        user_id=user.id, tournament_id=t_id
-    ).first()
-
-    if not participation:
-        flash("You are not a participant of this tournament.", "error")
-        return redirect(url_for("home_logged"))
-
-    # ✅ 2. Tournament status check
-    if t.status not in ["ongoing", "completed"]:
-        flash("You can only upload screenshot for ongoing/completed tournaments.", "error")
-        return redirect(url_for("home_logged"))
-
-    # ✅ 3. Already uploaded check
-    existing = MatchResults.query.filter_by(
-        user_id=user.id, tournament_id=t_id
-    ).first()
-
-    if existing:
-        flash("You have already uploaded a result screenshot.", "info")
-        return redirect(url_for("home_logged"))
-
-    file = request.files.get("screenshot")
-    if not file or not file.filename:
-        flash("No file selected.", "error")
-        return redirect(url_for("home_logged"))
-
-    filename = f"{int(time.time())}_{secure_filename(file.filename)}"
-    save_path = os.path.join(app.root_path, "static", "results", filename)
-    file.save(save_path)
-
-    result = MatchResults(
-        user_id=user.id,
-        tournament_id=t_id,
-        screenshot=filename,
-        verified=False
-    )
-
-    db.session.add(result)
-    db.session.commit()
-
-    flash("Screenshot uploaded! Please wait for verification.", "success")
-    return redirect(url_for("home_logged"))
-
-
-
-@app.route("/tournaments/load/<int:offset>")
-def load_tournaments(offset):
-    limit = 5  # ek baar me kitne tournaments
-
-    data = Tournament.query.order_by(Tournament.id.desc()).offset(offset).limit(limit).all()
-
-    tournaments = []
-
-    for t in data:
-        tournaments.append({
-            "id": t.id,
-            "name": t.name,
-            "desc": t.desc,
-            "location": t.location,
-            "image": t.image,
-            "date": t.date,
-            "entry_fee": t.entry_fee,
-            "prize_pool": t.prize_pool,
-            "current_players": t.current_players,
-            "max_players": t.max_players
-        })
-
-    return {"tournaments": tournaments}
-
-
-@app.route("/admin/verify_result/<int:id>", methods=["POST"])
-@admin_required
-def verify_result(id):
-    r = MatchResults.query.get_or_404(id)
-    t = Tournament.query.get_or_404(r.tournament_id)
-
-    kills = int(request.form.get("kills"))
-    rank = int(request.form.get("rank"))
-
-    points = calculate_points(rank, kills)
-
-    r.kills = kills
-    r.rank = rank
-    r.points = points
-    r.verified = 1
-
-    db.session.commit()
-
-    if t.status != "completed":
-        flash("Results can only be verified after the tournament is completed.", "error")
-        return redirect(url_for("tournament_detail", id=t.id))
-
-
-@app.route("/tournament_details_box/<int:id>")
-def tournament_details_box(id):
-    tournament = Tournament.query.get_or_404(id)
-    return render_template("partial_tournament_box.html", t=tournament)
-#cancel tournament 
-@app.route("/admin/cancel_tournament/<int:id>")
-@admin_required
-def cancel_tournament(id):
-    t = Tournament.query.get_or_404(id)
-    t.status = "cancelled"
-    db.session.commit()
-    
-    flash("Tournament has been cancelled!", "warning")
+    flash("Tournament added successfully!", "success")
     return redirect(url_for("admin_panel"))
-
-@app.route('/join_form/<int:id>')
-def join_form(id):
-    t = Tournament.query.get_or_404(id)
-
-    return render_template(
-        'join_form.html',
-        t=t,
-        tournament=t
-    )
-
-
-
-
-
-
-@app.route("/submit_join", methods=["POST"])
-def submit_join():
-    user = get_current_user()
-    if not user:
-        flash("Please login first!", "error")
-        return redirect(url_for("login"))
-
-    t_id = int(request.form.get("tournament_id"))
-    t = Tournament.query.get_or_404(t_id)
-
-    # ✅ 1. Tournament status check
-    if t.status != "upcoming":
-        flash("You can only join upcoming tournaments.", "error")
-        return redirect(url_for("home_logged"))
-
-    # ✅ 2. Duplicate join check
-    if user_already_joined(user.id, t_id):
-        flash("You have already joined this tournament.", "info")
-        return redirect(url_for("home_logged"))
-
-    # ✅ 3. Lobby full check
-    if t.max_players and (t.current_players or 0) >= t.max_players:
-        flash("This tournament lobby is already full.", "error")
-        return redirect(url_for("home_logged"))
-
-    # ✅ 4. Safe increment
-    t.current_players = (t.current_players or 0) + 1
-
-    # ✅ 5. Participation create
-    p = Participation(
-        user_id=user.id,
-        tournament_id=t_id,
-        team_name=request.form.get("teamName"),
-        captain_name=request.form.get("capName"),
-        captain_bgmi_id=request.form.get("capID"),
-        p2_name=request.form.get("p2Name"),
-        p2_id=request.form.get("p2ID"),
-        p3_name=request.form.get("p3Name"),
-        p3_id=request.form.get("p3ID"),
-        p4_name=request.form.get("p4Name"),
-        p4_id=request.form.get("p4ID"),
-        phone=request.form.get("phone"),
-        email=request.form.get("email"),
-        joined_at=str(datetime.now()),
-        status="joined"
-    )
-
-    db.session.add(p)
-    db.session.commit()
-
-    flash("Successfully joined the tournament!", "success")
-    return redirect(url_for("home_logged"))
-
-
-@app.route("/admin/publish_result/<int:id>")
-@admin_required
-def publish_result(id):
-    results = MatchResults.query.filter_by(tournament_id=id).all()
-    tournament = Tournament.query.get(id)
-
-    # points ke basis par sort
-    sorted_results = sorted(results, key=lambda x: x.points, reverse=True)
-
-    # Top 3 rewards (example)
-    prizes = [tournament.prize_pool * 0.5, tournament.prize_pool * 0.3, tournament.prize_pool * 0.2]
-    if tournament.result_published:
-            flash("Result already published.", "info")
-            return redirect(url_for("tournament_detail", id=id))
-
-    if tournament.status != "completed":
-        flash("Tournament is not completed yet.", "error")
-        return redirect(url_for("tournament_detail", id=id))
-    
-    for i, r in enumerate(sorted_results):
-        if i < len(prizes):
-            r.prize = prizes[i]
-
-            # Add to wallet
-            wallet = Wallet.query.filter_by(user_id=r.user_id).first()
-            wallet.balance += r.prize
-
-        else:
-            r.prize = 0
-    tournament.result_published = 1
-    tournament.result_published = True
-
-    db.session.commit()
-
-    flash("Result published and prize credited!", "success")
-    return redirect(url_for("admin_panel"))
-
-@app.route("/tournament_result/<int:id>")
-def tournament_result(id):
-    t = Tournament.query.get_or_404(id)
-    results = MatchResults.query.filter_by(tournament_id=id).order_by(MatchResults.points.desc()).all()
-
-    users = {}
-    for r in results:
-        users[r.user_id] = User.query.get(r.user_id)
-
-    return render_template("tournament_result.html", t=t, results=results, users=users)
-
-
 
 # Ads CRUD
 @app.route("/delete_ad/<int:id>", methods=["GET","POST"])
@@ -1712,7 +1101,6 @@ def add_ad_public():
     return redirect(url_for("admin_panel"))
 
 @app.route("/admin/add_ad", methods=["POST"])
-@admin_required
 def add_ad_main():
     if not session.get("admin_logged_in"):
         return redirect(url_for("admin_login"))
@@ -1722,7 +1110,7 @@ def add_ad_main():
     image_url = request.form.get("image_url")
     link_url = request.form.get("link_url")
 
-    if not title or not desc or not image_url :
+    if not title or not desc or not image_url or not link_url:
         flash("⚠️ All fields are required!", "error")
         return redirect(url_for("admin_panel"))
 
@@ -1739,7 +1127,6 @@ def add_ad_main():
     return redirect(url_for("admin_panel"))
 
 @app.route("/admin/ads", methods=["GET", "POST"])
-@admin_required
 def manage_ads():
     if request.method == "POST":
         title = request.form.get("title")
@@ -1768,12 +1155,10 @@ def manage_ads():
     return render_template("admin_ads.html", ads=ads)
 
 @app.route("/admin/ads-test")
-@admin_required
 def admin_ads_test():
     return render_template("admin_ads.html", ads=Ad.query.all())
 
 @app.route("/admin/update_ad/<int:ad_id>", methods=["POST"])
-@admin_required
 def update_ad(ad_id):
     try:
         ad = Ad.query.get_or_404(ad_id)
@@ -1788,7 +1173,6 @@ def update_ad(ad_id):
     return redirect(url_for("manage_ads"))
 
 @app.route("/admin/delete_ad/<int:ad_id>")
-@admin_required
 def delete_ad_admin(ad_id):
     try:
         ad = Ad.query.get_or_404(ad_id)
@@ -1829,45 +1213,36 @@ def complete_tournament(participation_id):
 
 # ------- TOURNAMENT STATUS UPDATER -------
 def update_tournament_status():
-    """Background updater (fixed)"""
+    """Background thread: tournament status auto-update (upcoming → ongoing → finished)"""
     while True:
         try:
             with app.app_context():
                 now = datetime.now()
                 tournaments = Tournament.query.all()
-
                 for t in tournaments:
-                    if not t.start_time:
+                    # skip if start_time/end_time not provided
+                    if not t.start_time or not t.end_time:
                         continue
 
-                    duration = t.duration if t.duration else 30
-                    start = t.start_time
-                    end = start + timedelta(minutes=duration)
-
-                    if start <= now <= end:
+                    if t.start_time <= now <= t.end_time:
                         if t.status != "ongoing":
                             t.status = "ongoing"
                             db.session.commit()
-
-                    elif now > end:
-                        if t.status != "completed":
-                            t.status = "completed"
+                    elif now > t.end_time:
+                        if t.status != "finished":
+                            t.status = "finished"
                             db.session.commit()
-
             time.sleep(60)
-
         except Exception as e:
             print(f"[ERROR] Tournament Status Updater: {e}")
             time.sleep(60)
-
-
 
 # Start background thread (only once)
 def start_status_updater():
     updater_thread = Thread(target=update_tournament_status, daemon=True)
     updater_thread.start()
 
-start_status_updater()
+
 
 # Forgot Password (email via Flask-Mail)
 @app.route("/forgot_password", methods=["GET", "POST"])
@@ -1971,124 +1346,6 @@ def get_users(status):
         })
     return jsonify(result)
 
-#tournament joined user pdf generated ----
-from reportlab.lib.pagesizes import letter
-from reportlab.pdfgen import canvas
-
-@app.route("/admin/download_players/<int:id>")
-@admin_required
-def download_players(id):
-    tournament = Tournament.query.get_or_404(id)
-    participants = Participation.query.filter_by(tournament_id=id).all()
-
-    filename = f"tournament_{id}_players.pdf"
-    filepath = os.path.join("static", "pdf", filename)
-
-    os.makedirs(os.path.join("static", "pdf"), exist_ok=True)
-
-    c = canvas.Canvas(filepath, pagesize=letter)
-    c.setFont("Helvetica-Bold", 16)
-    c.drawString(100, 750, f"Tournament Participants - {tournament.name}")
-
-    c.setFont("Helvetica", 12)
-    y = 720
-
-    for p in participants:
-        user = User.query.get(p.user_id)
-        line = f"User ID: {user.id} | Name: {user.username} | Email: {user.email}"
-        c.drawString(50, y, line)
-        y -= 20
-        if y < 50:  # new page
-            c.showPage()
-            c.setFont("Helvetica", 12)
-            y = 750
-
-    c.save()
-
-    return send_from_directory("static/pdf", filename, as_attachment=True)
- 
-
-
-# --------------------------------------------
-# DOWNLOAD JOINED PLAYERS PDF (FIXED)
-# --------------------------------------------
-@app.route("/admin/download_joined/<int:id>")
-@admin_required
-def download_joined(id):
-    participants = Participation.query.filter_by(tournament_id=id).all()
-
-    filename = f"joined_{id}.pdf"
-    filepath = os.path.join("static", filename)
-
-    c = canvas.Canvas(filepath)
-    c.setFont("Helvetica", 12)
-
-    y = 800
-    c.drawString(50, y, f"Tournament ID: {id} — Joined Players")
-    y -= 30
-
-    for p in participants:
-        text = f"{p.team_name} | Captain: {p.captain_name} ({p.captain_bgmi_id}) | Phone: {p.phone}"
-        c.drawString(50, y, text)
-        y -= 20
-        if y < 50:
-            c.showPage()
-            c.setFont("Helvetica", 12)
-            y = 800
-
-    c.save()
-    return send_file(filepath, as_attachment=True)
-
-
-
-# ------------------------------------------------
-# 🔥 FIXED: RESULT NOTIFICATION BLOCK SAFELY PLACED
-# ------------------------------------------------
-def notify_tournament_results(t):
-    """Notify all participants when tournament completed."""
-    if t.status == "completed" and (not getattr(t, "notified", False)):
-        participants = Participation.query.filter_by(tournament_id=t.id).all()
-
-        for p in participants:
-            try:
-                msg = Message(
-                    subject="Tournament Result Update",
-                    sender="YOUR_EMAIL@gmail.com",
-                    recipients=[p.email],
-                    body=f"Hello {p.captain_name},\nYour tournament results will be available soon!"
-                )
-                mail.send(msg)
-            except Exception as e:
-                print("Mail send error:", e)
-
-        t.notified = True
-        db.session.commit()
-
-
-
-# --------------------------------------------
-# CALCULATE POINTS (FULLY CORRECT)
-# --------------------------------------------
-def calculate_points(rank, kills):
-    
-    rank_points_table = {
-        1: 15,
-        2: 12,
-        3: 10,
-        4: 8,
-        5: 6,
-        6: 4,
-        7: 2
-    }
-
-    if 8 <= rank <= 12:
-        rank_points = 1
-    else:
-        rank_points = rank_points_table.get(rank, 0)
-
-    return rank_points + kills
-
-
 # Error handlers
 @app.errorhandler(404)
 def page_not_found(e):
@@ -2126,27 +1383,24 @@ def client_error():
     return '', 204
 
 # ---------- HEALTH CHECK ----------
-from sqlalchemy import text  # ⬅️ बस यह import add करना है
-
 @app.route("/health")
 def health():
     try:
+        # quick DB ping
         db.session.execute(text("SELECT 1"))
-        return {"status": "ok"}, 200
+        return {"status": "ok", "time": datetime.utcnow().isoformat()}, 200
     except Exception as ex:
+        app.logger.error("Health check failed: %s", str(ex))
         return {"status": "fail", "error": str(ex)}, 500
-
 # ---------- BACKGROUND SELF-HEAL WORKER ----------
 # register as scheduler job
 def self_heal_tasks():
     try:
-        with app.app_context():   # ← magic fix
-            ensure_user_wallets()
-            reconcile_tournament_counts()
-            retry_failed_payments()
+        ensure_user_wallets()
+        reconcile_tournament_counts()
+        retry_failed_payments()
     except Exception as e:
         app.logger.error("Self-heal error: %s", str(e))
-
 
 scheduler.add_job(self_heal_tasks, 'interval', seconds=60, id='self_heal')
 
@@ -2161,11 +1415,17 @@ if __name__ == "__main__":
     try:
         with app.app_context():
             db.create_all()
-        # start any background threads or schedulers BEFORE running app
-        start_status_updater()     # already called earlier; ensure called only once
+
+        # ✅ START BACKGROUND WORKERS (ONLY ONCE)
+        start_status_updater()
         start_self_heal_thread()
+
         app.logger.info("✅ Database initialized successfully! Starting app...")
-        app.run(debug=True)
+        app.run()
+
     except Exception as e:
         import traceback
-        app.logger.error("❌ Error while starting Flask app:\n%s", traceback.format_exc())
+        app.logger.error(
+            "❌ Error while starting Flask app:\n%s",
+            traceback.format_exc()
+        )
