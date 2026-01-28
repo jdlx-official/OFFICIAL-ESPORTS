@@ -1,0 +1,46 @@
+{% extends "admin.html" %}
+{% block content %}
+<div class="container mt-5 text-light">
+  <h2 class="text-warning mb-4">Manage Advertisements</h2>
+
+  <!-- Add New Ad Form -->
+  <form method="POST" class="bg-dark p-4 rounded-3 shadow-lg mb-4">
+    <div class="mb-3">
+      <label class="form-label">Ad Title</label>
+      <input type="text" class="form-control bg-secondary text-light" name="title" required />
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Ad Description</label>
+      <textarea class="form-control bg-secondary text-light" name="desc" rows="3" required></textarea>
+    </div>
+    <button type="submit" class="btn btn-warning w-100 fw-bold">Add Advertisement</button>
+  </form>
+
+  <!-- All Ads List -->
+  <div class="ads-list bg-dark p-4 rounded-3 shadow-lg">
+    <h4 class="text-warning mb-3">Existing Ads</h4>
+    {% if ads %}
+      <table class="table table-dark table-striped">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Title</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for ad in ads %}
+          <tr>
+            <td>{{ ad.id }}</td>
+            <td>{{ ad.title }}</td>
+            <td>{{ ad.desc }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p class="text-muted">No ads available yet.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

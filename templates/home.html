@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Home - OFFICIAL ESPORTS</title>
+
+  <!-- Font Awesome -->
+  <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/home_page.css') }}">
+</head>
+<body>
+{% set user_has_joined = false %}
+
+
+<header class="navbar">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div id="flash-messages">
+        {% for category, message in messages %}
+          <div class="flash-message {{ category }}">
+            {{ message }}
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  <div class="menu-icon" id="menuIcon"><i class="fas fa-bars"></i></div>
+
+  <div class="logo">
+    <div class="dot" aria-hidden="true"></div>
+    <div>OFFICIAL ESPORTS</div>
+  </div>
+
+  {% if 'username' in session %}
+    <div id="profileArea" class="profile">
+      <i class="fa fa-user"></i> {{ session['username'] }}
+    </div>
+  {% else %}
+    <a href="{{ url_for('login') }}" class="btn btn-outline-light">
+      <i class="fa fa-user"></i> Login
+    </a>
+  {% endif %}
+</header>
+
+<!-- ====== SIDE MENU ====== -->
+<nav class="side-menu" id="sideMenu">
+  <a href="#" id="smProfile">Profile</a>
+  <a href="#" onclick="showPage('home', this)">Home</a>
+  <a href="#" onclick="showPage('tournaments', this)">Events</a>
+  <a href="#" onclick="showPage('tournaments', this)">Ongoing Tournaments</a>
+
+  <a href="#" onclick="showPage('leaderboard', this)">Leaderboard</a>
+  <a href="#" onclick="showPage('help', this)">Contact Us</a>
+
+  <button onclick="showPage('leaderboard')">🏆 Match Results</button>
+
+  <a href="{{ url_for('logout') }}">Logout</a>
+
+</nav>
+
+<!-- ====== HOME PAGE ====== -->
+<main id="home" class="page active">
+  <div class="fade-in">
+    {% if ads %}
+      <p style="color:lime;">✅ {{ ads|length }} Ads Loaded</p>
+    {% else %}
+      <p style="color:red;">❌ No Ads Found</p>
+    {% endif %}
+
+    <!-- 🧩 SPONSORED ADS SLIDER -->
+    <section class="card-container fade-in">
+      <div class="card ad-slider">
+        <div class="slider-container">
+
+          {% if ads %}
+            {% for ad in ads %}
+              <div class="slide">
+                <a href="{{ ad.link_url or ad.link }}" target="_blank">
+                  {% if ad.image %}
+                    <img src="{{ url_for('static', filename='uploads/' + ad.image) }}"
+                         alt="{{ ad.title }}">
+                  {% elif ad.image_url %}
+                    <img src="{{ ad.image_url }}" alt="{{ ad.title }}">
+                  {% else %}
+                    <img src="https://dummyimage.com/600x300/000/fff&text=No+Image"
+                         alt="No Image">
+                  {% endif %}
+                </a>
+                <h3>{{ ad.title }}</h3>
+              </div>
+            {% endfor %}
+          {% else %}
+            <div class="no-ads">
+              <lottie-player
+                src="https://lottie.host/29e02b24-fd06-49b1-a2ae-89464a8eaf60/6T6K47zZgi.json"
+                background="transparent"
+                speed="1"
+                loop
+                autoplay
+                style="width:200px; height:200px; margin:auto;">
+              </lottie-player>
+              <p style="color:#aaa;">No Ads Available</p>
+            </div>
+
+            <div class="ads-slider">
+              {% for ad in ads %}
+                {% if ad.is_active %}
+                  <a href="{{ ad.link_url }}" target="_blank">
+                    <img src="{{ ad.image_url }}" class="slide-ad">
+                  </a>
+                {% endif %}
+              {% endfor %}
+            </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <br>
+
+      <form class="card">
+        <div class="card">
+          <h3>🎉 Upcoming Events</h3>
+          <p style="color:var(--muted)">Koi event abhi available nahi. (Placeholder)</p>
+        </div>
+
+        <br>
+
+        <div class="card">
+          <h3>🔥 Ongoing Tournaments</h3>
+          <ul>
+            {% for t in ongoing %}
+              <li>
+                <a href="{{ url_for('tournament_detail', id=t.id) }}">{{ t.name }}</a>
+              </li>
+            {% else %}
+              <li style="color:var(--muted)">Koi ongoing tournament nahi. (Placeholder)</li>
+            {% endfor %}
+          </ul>
+        </div>
+      </form>
+    </section>
+  </div>
+</main>
+
+
+<!-- 🏆 TOURNAMENTS PAGE -->
+<section id="tournaments" class="page">
+  <h2 style="text-align:center;">🏆 Tournaments</h2>
+
+  <div class="tournament-navbar">
+    <button onclick="showCategory('all')" class="active">All</button>
+    <button onclick="showCategory('ongoing')">Ongoing</button>
+    <button onclick="showCategory('upcoming')">Upcoming</button>
+    <button onclick="showCategory('completed')">Completed</button>
+  </div>
+
+  <!-- ALL TOURNAMENTS -->
+  <div id="category-all" class="category-section active fade-in">
+    {% if tournaments|length > 0 %}
+      {% for t in tournaments %}
+
+          <div class="tournament-card"
+     onclick="openTournamentDetails(
+        {{ t.id }},
+        '{{ t.name|escape }}',
+        '{{ t.desc|escape }}',
+        '{{ t.location|escape }}',
+        '{{ t.start_time.strftime("%d %b %Y %I:%M %p") if t.start_time else t.date }}',
+        '{{ t.entry_fee }}',
+        '{{ t.prize_pool }}',
+        {{ t.current_players or 0 }},
+        {{ t.max_players or 0 }},
+        '{{ url_for('static', filename='uploads/' ~ t.image) if t.image else '' }}'
+     )"
+     data-start="{{ t.start_ts }}"
+     data-end="{{ t.end_ts }}"
+     data-status="{{ t.status }}"
+     data-link="{{ t.match_link }}">
+
+
+
+          <div class="overlay"></div>
+
+          <div class="tournament-content">
+            <h3>{{ t.name }}</h3>
+            <p>{{ t.desc }}</p>
+            <p><b>Location:</b> {{ t.location }}</p>
+            <p><b>Entry Fee:</b> {{ t.entry_fee }}</p>
+            <p><b>Prize Pool:</b> {{ t.prize_pool }}</p>
+            <p><b>Date:</b> {{ t.date }}</p>
+            <p><b>Players:</b> {{ t.current_players }} / {{ t.max_players }}</p>
+
+            <!-- TIMER -->
+            <div class="timer" style="font-size:14px; color:#0f0;">Loading...</div>
+
+            <div class="button-area">
+            <button type="button"
+               onclick="event.stopPropagation(); window.location.href='{{ url_for('join_form', id=t.id) }}'"
+                {% if t.max_players and t.current_players >= t.max_players %}disabled{% endif %}>
+
+                {% if t.max_players and t.current_players >= t.max_players %}
+                  Full
+                {% else %}
+                  Join
+                {% endif %}
+              </button>
+            </div>
+          </div>
+        </div> <!-- END tournament-card -->
+
+      {% endfor %}
+    {% else %}
+      <div class="no-tournament">
+        <lottie-player
+          src="https://lottie.host/29e02b24-fd06-49b1-a2ae-89464a8eaf60/6T6K47zZgi.json"
+          background="transparent"
+          speed="1"
+          loop
+          autoplay
+          style="width:300px; height:300px;">
+        </lottie-player>
+        <h3>No tournaments available</h3>
+      </div>
+    {% endif %}
+  </div>
+</section>
+
+<!-- RESULT UPLOAD MODALS (per tournament) -->
+{% for t in tournaments %}
+<div id="resultModal-{{ t.id }}" class="modal" style="display:none;">
+  <div class="modal-content" style="background:#111; padding:20px;">
+    <h3>Upload Match Screenshot</h3>
+
+    <form action="{{ url_for('upload_screenshot') }}" method="POST" enctype="multipart/form-data">
+
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="tournament_id" value="{{ t.id }}">
+
+      <input type="file" name="screenshot" required>
+      <button type="submit">Submit</button>
+    </form>
+
+    <button onclick="document.getElementById('resultModal-{{ t.id }}').style.display='none'">
+      Close
+    </button>
+  </div>
+</div>
+{% endfor %}
+
+<!-- 🔸 ONGOING -->
+<div id="category-ongoing" class="category-section">
+  <h3>🔥 Ongoing Tournaments</h3>
+
+  {% if ongoing|length > 0 %}
+    {% for t in ongoing %}
+      <div class="tournament-card">
+        <h3>{{ t.name }}</h3>
+        <p>{{ t.desc }}</p>
+        <p>Status: Ongoing</p>
+
+        {% if t.match_link %}
+          <a class="view-btn" href="{{ t.match_link }}">View Match</a>
+        {% else %}
+          <button onclick="alert('Match link not generated yet!')">View</button>
+        {% endif %}
+      </div>
+    {% endfor %}
+  {% else %}
+    <div class="no-tournament">
+      <lottie-player
+        src="https://lottie.host/29e02b24-fd06-49b1-a2ae-89464a8eaf60/6T6K47zZgi.json"
+        background="transparent"
+        speed="1"
+        loop
+        autoplay
+        style="width:300px; height:300px;">
+      </lottie-player>
+      <h3>No Ongoing Tournaments</h3>
+    </div>
+  {% endif %}
+</div>
+
+<!-- 🔸 UPCOMING -->
+<div id="category-upcoming" class="category-section">
+  <h3>📅 Upcoming Tournaments</h3>
+
+  {% if upcoming|length > 0 %}
+    {% for t in upcoming %}
+      <div class="tournament-card">
+        <h3>{{ t.name }}</h3>
+        <p>Starts on: {{ t.start_time }}</p>
+        <p>Status: Upcoming</p>
+
+        {% if t.status == "upcoming" %}
+          <button class="join" onclick="openRegistrationForm({{ t.id }})">Join</button>
+        {% endif %}
+      </div>
+    {% endfor %}
+  {% else %}
+    <div class="no-tournament fade-in">
+      <lottie-player
+        src="https://lottie.host/29e02b24-fd06-49b1-a2ae-89464a8eaf60/6T6K47zZgi.json"
+        background="transparent"
+        speed="1"
+        loop
+        autoplay
+        style="width:300px; height:300px;">
+      </lottie-player>
+      <h3>No Upcoming Tournaments</h3>
+    </div>
+  {% endif %}
+</div>
+
+<!-- 🔸 COMPLETED -->
+<div id="category-completed" class="category-section fade-in">
+  <h3>🏁 Completed Tournaments</h3>
+
+  {% if finished|length > 0 %}
+    {% for t in finished %}
+      <div class="tournament-card">
+        <h3>{{ t.name }}</h3>
+        <p>Status: Completed</p>
+
+        {% if t.status == "completed" %}
+          {% if user_has_joined %}
+            <button onclick="openScreenshotModal({{ t.id }})">Upload Screenshot</button>
+          {% endif %}
+          <button disabled>Wait for Result</button>
+        {% else %}
+          <button disabled>Wait for Result</button>
+        {% endif %}
+      </div>
+    {% endfor %}
+  {% else %}
+    <div class="no-tournament">
+      <lottie-player
+        src="https://lottie.host/29e02b24-fd06-49b1-a2ae-89464a8eaf60/6T6K47zZgi.json"
+        background="transparent"
+        speed="1"
+        loop
+        autoplay
+        style="width:300px; height:300px;">
+      </lottie-player>
+      <h3>No Completed Tournaments</h3>
+    </div>
+  {% endif %}
+</div>
+
+<!-- ⭐ LEADERBOARD PAGE -->
+<section id="leaderboard" class="page fade-in">
+  <div class="card">
+    <h3>⭐ Leaderboard</h3>
+    <p style="color:var(--muted)">Top players leaderboard are shown here....</p>
+  </div>
+</section>
+
+<!-- 👤 PROFILE PAGE -->
+<section id="profilePage" class="page">
+  <div class="fade-in">
+    <button class="back-btn" onclick="showPage('home')">⬅ Back</button>
+    <h3 style="margin-top:6px">👤 My Profile</h3>
+    <p><strong>Username:</strong> <span id="profileName">{{ username }}</span></p>
+    <p><strong>Email:</strong> <span id="profileEmail">{{ email }}</span></p>
+    <p>
+      <strong>User ID:</strong> {{ user.id }}
+<button onclick="navigator.clipboard.writeText('{{ user.id }}')">Copy ID</button>
+
+
+    <div class="profile-actions">
+      <button onclick="editProfile()">✏️ Edit Profile</button>
+      <button onclick="openSettings()">⚙️ Settings</button>
+      <button onclick="window.location.href='{{ url_for('logout') }}'">🚪 Logout</button>
+      <button onclick="showPage('walletpage')">wallet</button>
+      
+    </div>
+  </div>
+</section>
+
+<!-- 🪙 WALLET SECTION -->
+<section id="walletpage" class="page fade-in">
+  <div class="wallet-box">
+    <h3>💰 Wallet Balance: {{ wallet.balance if wallet else 0 }}</h3>
+
+    <form method="POST" action="/add_money">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="number" name="amount" placeholder="Enter amount" required>
+      <button type="submit">Add Money</button>
+
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+      <div class="wallet-box">
+        <h3>Wallet Balance: ₹{{ wallet.balance if wallet else 0 }}</h3>
+
+        <button onclick="document.getElementById('withdrawModalBank').style.display='flex'"
+                class="btn btn-warning" type="button">
+          Withdraw Money
+        </button>
+      </div>
+    </form>
+
+    <div class="modal" id="withdrawModalBank" style="display:none;">
+      <div class="modal-content">
+        <button onclick="document.getElementById('withdrawModalBank').style.display='none'"
+                class="close-btn">×</button>
+
+        <h3>Withdraw Money</h3>
+
+        <form method="POST" action="/withdraw_request">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+          <label>Amount</label>
+          <input type="number" name="amount" required>
+
+          <label>Account Number</label>
+          <input type="text" name="account_number" required>
+
+          <label>IFSC Code</label>
+          <input type="text" name="ifsc" required>
+
+          <label>Account Holder Name</label>
+          <input type="text" name="holder_name" required>
+
+          <button type="submit" class="btn btn-warning">Submit Request</button>
+        </form>
+      </div>
+    </div>
+
+    <h3>💳 Transaction History</h3>
+    {% for t in transactions %}
+      <div class="txn-box"
+           style="padding:10px; margin:8px; border-radius:10px; background:#222;">
+        {% if t.type == "add_money" %}
+          <p style="color:#00ff00;">
+            + ₹{{ t.amount }} <b>(Add Money - {{ t.status }})</b>
+          </p>
+        {% elif t.type == "withdraw" %}
+          <p style="color:#ffcc00;">
+            - ₹{{ t.amount }} <b>(Withdraw - {{ t.status }})</b>
+          </p>
+        {% endif %}
+        <small style="color:#aaa">{{ t.created_at }}</small>
+      </div>
+    {% endfor %}
+
+    <h4>📜 Transaction History</h4>
+    <ul>
+      {% for t in transactions %}
+        <li>
+          {{ t.amount }} INR — {{ t.status }} — {{ t.created_at }}
+        </li>
+      {% endfor %}
+    </ul>
+  </div>
+
+  <div class="card wallet-card">
+    <h3>💰 Wallet</h3>
+    <p><b>Available Balance:</b> ₹{{ wallet.balance if wallet else 0 }}</p>
+
+    <button class="withdraw-btn" onclick="openWithdrawModal()" type="button">
+      Withdraw Money
+    </button>
+
+    <h4 class="mt-3">📜 Transaction History</h4>
+
+    <div class="txn-filter">
+      <button onclick="filterTxn('all')" class="active">All</button>
+      <button onclick="filterTxn('add')">Add Money</button>
+      <button onclick="filterTxn('withdraw')">Withdraw</button>
+    </div>
+
+    <div id="txn-list">
+      {% for t in transactions %}
+        <div class="txn-item" data-type="{{ t.type }}">
+          <span>{{ t.created_at }} </span>
+          <span class="amount {{ 'success' if t.status=='success' else 'failed' }}">
+            {{ '+' if t.type=='add_money' else '-' }} ₹{{ t.amount }}
+          </span>
+          <span class="status">{{ t.status.capitalize() }}</span>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="modal" id="withdrawModal">
+    <div class="modal-content withdraw-box">
+      <button class="close-btn" onclick="closeWithdrawModal()">×</button>
+      <h2>Withdraw Money</h2>
+
+      <form action="/withdraw_request" method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="number" name="amount" placeholder="Enter Amount" required>
+        <input type="text" name="upi" placeholder="Enter UPI ID" required>
+        <button type="submit" class="withdraw-submit">Withdraw</button>
+      </form>
+    </div>
+  </div>
+</section>
+
+<!-- Tournament Details Popup -->
+<div id="tournamentDetailsBox" class="glass-box">
+  <div class="glass-content" style="position:relative;">
+    <button class="close-detail" onclick="closeTournamentDetails()">✖</button>
+
+    <div class="glass-header">
+      <img id="tdBanner" src="" alt="banner">
+      <h2 id="tdName"></h2>
+      <p id="tdDesc" style="font-size:14px; color:#ddd; text-align:center;"></p>
+    </div>
+
+    <div class="glass-info">
+      <p><b>📍 Location:</b> <span id="tdLocation"></span></p>
+      <p><b>💸 Entry Fee:</b> ₹<span id="tdEntry"></span></p>
+      <p><b>🎁 Prize Pool:</b> ₹<span id="tdPrize"></span></p>
+      <p><b>📅 Date:</b> <span id="tdDate"></span></p>
+      <p><b>👥 Players:</b> <span id="tdPlayers"></span></p>
+    </div>
+
+    <div class="glass-buttons">
+      <button id="popupJoinBtn">Join</button>
+
+      {% if user_has_joined %}
+        <!-- JS me current tournament id se onclick set karna -->
+        <button id="popupUploadBtn">Upload Screenshot</button>
+      {% endif %}
+    </div>
+
+    <hr style="border: 1px solid rgba(255,255,255,0.1); margin:12px 0;">
+
+    <div class="extra-section">
+      <h3 style="color:#ffd700;">📜 Game Rules</h3>
+      <p id="tdRules" style="color:#eee; font-size:14px;"></p>
+
+      <h3 style="color:#00eaff;" id="roomDetailsTitle">🔐 Room Details</h3>
+      <p><b>Room ID:</b> <span id="tdRoomId">Not available</span></p>
+      <p><b>Password:</b> <span id="tdRoomPass">Not available</span></p>
+    </div>
+  </div>
+</div>
+
+<!-- ====== BOTTOM NAV ====== -->
+<div class="bottom-nav" role="navigation" aria-label="Primary">
+  <div class="nav-item active" onclick="showPage('home', this)">
+    <i class="fas fa-home"></i><span>Home</span>
+  </div>
+  <div class="nav-item" onclick="showPage('tournaments', this)">
+    <i class="fas fa-trophy"></i><span>Tournaments</span>
+  </div>
+  <div class="nav-item" onclick="showPage('leaderboard', this)">
+    <i class="fas fa-star"></i><span>Leaderboard</span>
+  </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/home_page.js') }}"></script>
+</body>
+</html>

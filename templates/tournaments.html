@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tournaments - OFFICIAL ESPORTS</title>
+
+  <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/home_page.css') }}">
+
+  <script defer src="{{ url_for('static', filename='js/tournaments.js') }}"></script>
+</head>
+
+<body>
+
+<header class="navbar">
+  <div class="menu-icon" onclick="window.location.href='/'">
+    <i class="fas fa-arrow-left"></i>
+  </div>
+
+  <div class="logo">
+    <div class="dot"></div>
+    <div>Tournaments</div>
+  </div>
+
+  <div></div>
+</header>
+
+<section id="tournaments" class="page active">
+  <h2 style="text-align:center;">🏆 Tournaments</h2>
+
+  <div class="tournament-navbar">
+    <button onclick="showCategory('all')" class="active">All</button>
+    <button onclick="showCategory('ongoing')">Ongoing</button>
+    <button onclick="showCategory('upcoming')">Upcoming</button>
+    <button onclick="showCategory('completed')">Completed</button>
+  </div>
+
+  <!-- ALL SECTION -->
+  <div id="category-all" class="category-section active fade-in">
+    {% if tournaments|length > 0 %}
+      {% for t in tournaments %}
+      <div class="tournament-card"
+     onclick="openTournamentDetails(this)"
+     data-id="{{ t.id }}"
+     data-name="{{ t.name }}"
+     data-desc="{{ t.desc }}"
+     data-entry="{{ t.entry_fee }}"
+     data-prize="{{ t.prize_pool }}"
+     data-date="{{ t.date }}"
+     data-location="{{ t.location }}"
+     data-current="{{ t.current_players }}"
+     data-max="{{ t.max_players }}"
+     data-rules="{{ t.rules }}"
+     data-image="{{ t.banner_url }}"
+     data-roomid="{{ t.room_id }}"
+     data-roompass="{{ t.room_pass }}"
+     data-joined="{{ t.joined_status }}"
+     data-start="{{ t.start_ts }}"
+     data-end="{{ t.end_ts }}">
+
+        <div class="overlay"></div>
+
+        <div class="tournament-content">
+          <h3>{{ t.name }}</h3>
+          <p>{{ t.desc }}</p>
+          <p><b>Location:</b> {{ t.location }}</p>
+          <p><b>Entry Fee:</b> {{ t.entry_fee }}</p>
+          <p><b>Prize Pool:</b> {{ t.prize_pool }}</p>
+          <p><b>Date:</b> {{ t.date }}</p>
+          <p><b>Players:</b> {{ t.current_players }} / {{ t.max_players }}</p>
+
+          <div class="timer">Loading...</div>
+
+          <div class="button-area">
+            <button
+              onclick="window.location.href='/join_form/{{ t.id }}'; event.stopPropagation();"
+              {% if t.max_players and t.current_players >= t.max_players %}disabled{% endif %}>
+              {% if t.max_players and t.current_players >= t.max_players %}
+                Full
+              {% else %}
+                Join
+              {% endif %}
+            </button>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="no-tournament">
+        <lottie-player
+          src="https://lottie.host/29e02b24-fd06-49b1-a2ae-89464a8eaf60/6T6K47zZgi.json"
+          background="transparent"
+          speed="1" loop autoplay></lottie-player>
+        <h3>No tournaments available</h3>
+      </div>
+    {% endif %}
+  </div>
+</section>
+
+<!-- ONGOING -->
+<div id="category-ongoing" class="category-section">
+  <h3>🔥 Ongoing Tournaments</h3>
+  {% if ongoing|length > 0 %}
+    {% for t in ongoing %}
+      <div class="tournament-card">
+        <h3>{{ t.name }}</h3>
+        <p>{{ t.desc }}</p>
+        <p>Status: Ongoing</p>
+
+        {% if t.match_link %}
+          <a class="view-btn" href="{{ t.match_link }}">View Match</a>
+        {% else %}
+          <button onclick="alert('Match link not generated yet!')">View</button>
+        {% endif %}
+      </div>
+    {% endfor %}
+  {% else %}
+    <div class="no-tournament">
+      <lottie-player
+        src="https://lottie.host/29e02b24-fd06-49b1-a2ae-89464a8eaf60/6T6K47zZgi.json"
+        background="transparent"
+        speed="1" loop autoplay></lottie-player>
+      <h3>No Ongoing Tournaments</h3>
+    </div>
+  {% endif %}
+</div>
+
+<!-- UPCOMING -->
+<div id="category-upcoming" class="category-section">
+  <h3>📅 Upcoming Tournaments</h3>
+  {% if upcoming|length > 0 %}
+    {% for t in upcoming %}
+      <div class="tournament-card">
+        <h3>{{ t.name }}</h3>
+        <p>Starts on: {{ t.start_time }}</p>
+        <p>Status: Upcoming</p>
+        <button onclick="openRegistrationForm({{ t.id }})">Join</button>
+      </div>
+    {% endfor %}
+  {% else %}
+    <div class="no-tournament">
+      <lottie-player src="https://lottie.host/29e02b24-fd06-49b1-a2ae-89464a8eaf60/6T6K47zZgi.json" loop autoplay></lottie-player>
+      <h3>No Upcoming Tournaments</h3>
+    </div>
+  {% endif %}
+</div>
+
+<!-- COMPLETED -->
+<div id="category-completed" class="category-section fade-in">
+  <h3>🏁 Completed Tournaments</h3>
+  {% if finished|length > 0 %}
+    {% for t in finished %}
+      <div class="tournament-card">
+        <h3>{{ t.name }}</h3>
+        <p>Status: Completed</p>
+        {% if t.status == "completed" %}
+          {% if user_has_joined %}
+            <button onclick="openScreenshotModal({{ t.id }})">Upload Screenshot</button>
+          {% endif %}
+        {% endif %}
+        <button disabled>Wait for Result</button>
+      </div>
+    {% endfor %}
+  {% else %}
+    <div class="no-tournament">
+      <lottie-player src="https://lottie.host/29e02b24-fd06-49b1-a2ae-89464a8eaf60/6T6K47zZgi.json" loop autoplay></lottie-player>
+      <h3>No Completed Tournaments</h3>
+    </div>
+  {% endif %}
+</div>
+
+<!-- POPUP DETAILS -->
+<div id="tournamentDetailsBox" class="glass-box">
+  <div class="glass-content">
+    <button class="close-detail" onclick="closeTournamentDetails()">✖</button>
+
+    <div class="glass-header">
+      <img id="tdBanner" src="">
+      <h2 id="tdName"></h2>
+      <p id="tdDesc"></p>
+    </div>
+
+    <div class="glass-info">
+      <p><b>📍 Location:</b> <span id="tdLocation"></span></p>
+      <p><b>💸 Entry Fee:</b> ₹<span id="tdEntry"></span></p>
+      <p><b>🎁 Prize:</b> ₹<span id="tdPrize"></span></p>
+      <p><b>📅 Date:</b> <span id="tdDate"></span></p>
+      <p><b>👥 Players:</b> <span id="tdPlayers"></span></p>
+    </div>
+
+    <div class="glass-buttons">
+      <button id="popupJoinBtn">Join</button>
+      {% if user_has_joined %}
+        <button id="popupUploadBtn">Upload Screenshot</button>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- ======================= -->
+<!-- ⭐ BOTTOM NAVIGATION ⭐ -->
+<!-- ======================= -->
+<div class="bottom-nav" role="navigation">
+  <div class="nav-item" onclick="window.location.href='/'">
+    <i class="fas fa-home"></i><span>Home</span>
+  </div>
+
+
+    <!-- TOURNAMENT (ACTIVE) -->
+  <div class="nav-item " onclick="window.location.href='/tournaments'">
+    <i class="fas fa-trophy"></i>
+    <span>Tournaments</span>
+  </div>
+  <div class="nav-item " onclick="showPage('leaderboard', this)">
+    <i class="fas fa-star"></i><span>Leaderboard</span>
+  </div>
+</div>
+
+
+</body>
+</html>

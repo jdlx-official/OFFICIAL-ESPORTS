@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>{{ tournament.name }} - Team Registration</title>
+  
+
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{
+      font-family:'Poppins',sans-serif;
+      background:radial-gradient(circle at top, #12141a, #08090c 80%);
+      color:#e9eef8;
+      display:flex;
+      justify-content:center;
+      padding:40px;
+    }
+
+    .card{
+      width:100%;
+      max-width:960px;
+      border-radius:18px;
+      overflow:hidden;
+      background:rgba(255,255,255,0.04);
+      backdrop-filter:blur(14px);
+      box-shadow:0 20px 40px rgba(0,0,0,0.6);
+      display:grid;
+      grid-template-columns:380px 1fr;
+    }
+
+    /* LEFT */
+    .brand{
+      padding:32px;
+      background:linear-gradient(180deg,#0d0f14,#151922);
+      border-right:1px solid rgba(255,255,255,0.06);
+    }
+    .logo{
+      display:flex;align-items:center;gap:14px;margin-bottom:10px
+    }
+    .mark{
+      width:70px;height:70px;border-radius:14px;background:#ff2727;
+      display:flex;justify-content:center;align-items:center;
+      color:#fff;font-weight:700;font-size:22px;
+      box-shadow:0 8px 18px rgba(255,40,40,0.35);
+    }
+
+    .hero{
+      font-size:22px;
+      font-weight:700;
+      margin-top:10px;
+      background:linear-gradient(90deg,#ff3b3b,#ffbcbc);
+      -webkit-background-clip:text;
+      -webkit-text-fill-color:transparent;
+    }
+
+    .sub{font-size:14px;color:#9fb2d1;margin-top:4px}
+
+    .tname{
+      margin-top:18px;
+      padding:10px 14px;
+      border-radius:12px;
+      font-size:14px;
+      background:rgba(255,255,255,0.06);
+      border-left:4px solid #ff3d3d;
+    }
+
+    .info-box{
+      margin-top:18px;
+      background:rgba(255,255,255,0.05);
+      padding:12px;
+      font-size:13px;
+      border-radius:10px;
+    }
+
+    /* FORM RIGHT */
+    .form-wrap{
+      padding:32px;
+    }
+    .form-wrap h3{
+      margin-bottom:10px;
+      color:#fff;
+      font-size:20px;
+    }
+
+    label{font-size:13px;color:#cfe0ff;margin-bottom:4px}
+    .form-row{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:12px;
+    }
+
+    input, select{
+      width:100%;
+      padding:10px;
+      border-radius:10px;
+      border:none;
+      background:#0d0f11;
+      color:#fff;
+      outline:none;
+      font-size:14px;
+      box-shadow:0 0 0 1px rgba(255,255,255,0.07);
+    }
+
+    .full{grid-column:1/-1}
+
+    .btn{
+      margin-top:14px;
+      width:100%;
+      padding:13px;
+      border:none;
+      border-radius:12px;
+      font-weight:700;
+      cursor:pointer;
+      background:linear-gradient(90deg,#ff3131,#ff8b8b);
+      color:#000;
+      box-shadow:0 8px 22px rgba(255,40,40,0.25);
+      transition:0.2s;
+    }
+    .btn:hover{transform:translateY(-3px)}
+
+    /* SUCCESS MODAL */
+    .overlay{
+      position:fixed;inset:0;
+      background:rgba(0,0,0,0.65);
+      display:flex;justify-content:center;align-items:center;
+      visibility:hidden;opacity:0;transition:0.2s;
+    }
+    .overlay.show{visibility:visible;opacity:1}
+
+    .modal{
+      background:#101216;
+      padding:24px;
+      border-radius:14px;
+      width:320px;
+      text-align:center;
+    }
+
+    .modal h4{color:#fff;margin-bottom:6px}
+    .modal p{color:#b8cfe8;margin-bottom:12px}
+    .close{
+      margin-top:10px;
+      border:none;
+      padding:10px 14px;
+      border-radius:10px;
+      background:#ff3b3b;
+      color:#fff;
+      cursor:pointer;
+    }
+
+    @media(max-width:900px){
+      .card{grid-template-columns:1fr}
+      .brand{border-right:none;border-bottom:1px solid rgba(255,255,255,0.08)}
+    }
+  </style>
+</head>
+
+<body>
+  <form id="regForm" method="POST" action="/tournament_register/{{ t.id }}" enctype="multipart/form-data">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+  <div class="card">
+
+    <!-- LEFT SECTION -->
+    <div class="brand">
+
+      <div class="logo">
+        <div class="mark">ES</div>
+        <div>
+          <h2>OFFICIAL ESPORTS</h2>
+          <p>Registration Portal</p>
+        </div>
+      </div>
+
+      <!-- ⭐ Tournament Name Dynamic -->
+      <div class="tname">
+        <b>🎟 Tournament:</b> {{ tournament.name }}
+        <p><b>Game:</b> {{ tournament.game_name }}</p>
+<p><b>Map:</b> {{ tournament.map_name }}</p>
+<p><b>Mode:</b> {{ tournament.mode }}</p>
+<p><b>Perspective:</b> {{ tournament.game_type }}</p>
+<p><b>Max Players:</b> {{ tournament.max_players }}</p>
+
+      </div>
+
+      <div class="hero">Register Your Squad</div>
+      <div class="sub">TPP • FPP • Squad – BGMI Match</div>
+
+      <div class="info-box">
+        <strong>Important Notes:</strong>
+        <ul style="margin-left:16px;margin-top:6px;color:#d6e7ff">
+          <li>Captain email + phone required.</li>
+          <li>Bank details required for prize.</li>
+          <li>BGMI ID must match in match verification.</li>
+        </ul>
+      </div>
+
+    </div>
+
+    <!-- RIGHT SECTION -->
+    <div class="form-wrap">
+
+      <h3>Team Registration</h3>
+
+      <div class="form-row">
+
+  <div class="field full">
+    <label>Team Name</label>
+    <input type="text" id="teamName" name="teamName" required>
+  </div>
+
+  <div class="field">
+    <label>Captain Name</label>
+    <input type="text" id="capName" name="capName" required>
+  </div>
+
+  <div class="field">
+    <label>Captain Email</label>
+    <input type="email" id="capEmail" name="capEmail" required>
+  </div>
+
+  <div class="field">
+    <label>Captain BGMI ID</label>
+    <input type="text" id="capID" name="capID" required>
+  </div>
+
+  <div class="field">
+    <label>Player 2 Name</label>
+    <input type="text" id="p2Name" name="p2Name">
+  </div>
+
+  <div class="field">
+    <label>Player 2 BGMI ID</label>
+    <input type="text" id="p2ID" name="p2ID">
+  </div>
+
+  <div class="field">
+    <label>Player 3 Name</label>
+    <input type="text" id="p3Name" name="p3Name">
+  </div>
+
+  <div class="field">
+    <label>Player 3 BGMI ID</label>
+    <input type="text" id="p3ID" name="p3ID">
+  </div>
+
+  <div class="field">
+    <label>Player 4 Name</label>
+    <input type="text" id="p4Name" name="p4Name">
+  </div>
+
+  <div class="field">
+    <label>Player 4 BGMI ID</label>
+    <input type="text" id="p4ID" name="p4ID">
+  </div>
+
+  <div class="field full">
+    <label>Select Mode</label>
+    <div class="grid-2">
+      <select id="mode" name="mode" disabled>
+        <option value="FPP" >FPP</option>
+        <option value="TPP">TPP</option>
+      </select>
+      <select id="map" name="map"disabled>
+        <option value="Erangel">Erangel</option>
+        <option value="Miramar">Miramar</option>
+        <option value="Sanhok">Sanhok</option>
+        <option value="Vikendi">Vikendi</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="field full">
+    <label>Team Captain Phone / WhatsApp</label>
+    <input type="text" id="phone" name="phone">
+  </div>
+
+  <div class="field">
+    <label>Account Holder Name</label>
+    <input type="text" id="holder" name="holder" required>
+  </div>
+
+  <div class="field">
+    <label>Account Number</label>
+    <input type="text" id="accNum" name="accNum" required>
+  </div>
+
+  <div class="field full">
+    <label>IFSC Code</label>
+    <input type="text" id="ifsc" name="ifsc" required>
+  </div>
+</div>
+
+
+        <button class="btn">Register</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- SUCCESS MODAL -->
+  <div class="overlay" id="overlay">
+    <div class="modal">
+      <h4>Registration Successful</h4>
+      <p id="summary"></p>
+      <button class="close" id="closeBtn">Close</button>
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById('regForm');
+    const overlay = document.getElementById('overlay');
+    const summary = document.getElementById('summary');
+
+    form.onsubmit = (e)=>{
+      e.preventDefault();
+
+      summary.textContent = 
+        `Team: ${teamName.value}\nCaptain: ${capName.value}\nEmail: ${capEmail.value}\nBGMI: ${capID.value}`;
+
+      overlay.classList.add("show");
+      setTimeout(()=> form.reset(),300);
+    }
+
+    document.getElementById('closeBtn').onclick = ()=>{
+      overlay.classList.remove("show");
+    };
+  </script>
+
+</body>
+</html>

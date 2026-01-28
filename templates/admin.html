@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Panel - Official Esports</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin_page.css') }}">
+</head>
+
+<body>
+  <header>
+    <h1>|OFFICIAL ESPORTS</h1>
+    <head1>ADMIN PANEL</head1>
+    <a href="{{ url_for('logout') }}">Logout</a>
+  </header>
+
+  <!-- ---------- SIDEBAR ---------- -->
+  <div class="sidebar">
+    <button onclick="showSection('userSection')">👤 Users</button>
+    <button onclick="showSection('tournaments')">🏆 Tournaments</button>
+    <button onclick="showSection('ads')">📢 Ads</button>
+    <button onclick="showSection('withdrawSection')">💸 Withdraw Requests</button>
+  </div>
+
+  <!-- ---------- MAIN CONTENT ---------- -->
+  <div class="content">
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        {% for msg in messages %}
+          <div class="flash">{{ msg }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <!-- ---------- USERS SECTION ---------- -->
+    <div id="userSection" class="section active">
+      <div class="search-box">
+        <input
+          type="text"
+          id="searchInput"
+          placeholder="Search user by name, email or mobile..."
+          autocomplete="on"
+        />
+        <button class="search-btn" id="searchBtn">🔍</button>
+
+        <div class="search-results" id="searchResults"></div>
+      </div>
+
+      <h2>Registered Users</h2>
+
+      <div class="user-filters">
+        <button id="totalBtn" class="count-btn active">
+          Total Users: <span id="totalCount">0</span>
+        </button>
+        <span id="total_users" style="display:none">0</span>
+
+        <button id="activeBtn" class="filter-btn" data-status="active">
+          Active: <span id="activeCount">0</span>
+        </button>
+        <span id="active_users" style="display:none">0</span>
+
+        <button id="inactiveBtn" class="filter-btn" data-status="inactive">
+          Inactive: <span id="inactiveCount">0</span>
+        </button>
+        <span id="inactive_users" style="display:none">0</span>
+      </div>
+
+      <table class="user-table">
+        <thead>
+          <tr>
+            <th>Username</th>
+            <th>Email</th>
+            <th>Mobile</th>
+            <th>Status</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+
+        <tbody id="userTableBody">
+          {% for user in users %}
+          <tr>
+            <td>
+              {{ user.username }}
+              {% if user.is_active %}
+                <span class="status-dot online"></span>
+              {% else %}
+                <span class="status-dot offline"></span>
+              {% endif %}
+            </td>
+            <td>{{ user.email }}</td>
+            <td>{{ user.mobilenumber }}</td>
+            <td>{{ "Active" if user.is_active else "Inactive" }}</td>
+            <td>
+              <!-- ✅ yahan JS se values fill hongi baad me -->
+              <button
+                class="btn btn-edit"
+                onclick="openUserEditModal({{ user.id }}, '{{ user.username }}', '{{ user.email }}', '{{ user.mobilenumber }}')"
+              >
+                ✏️ Edit
+              </button>
+
+              <form method="POST" action="{{ url_for('delete_user', id=user.id) }}" style="display:inline-block; margin-left:6px;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="btn btn-delete">Delete</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      <!-- container used by scripts that load dynamic pages -->
+      <div id="main-content" style="display:none"></div>
+
+      <!-- list used by loadUsers() -->
+      <div id="user-list"></div>
+    </div>
+
+
+
+    <!-- ✅ EDIT USER MODAL -->
+    <div class="modal" id="editUserModal">
+      <div class="modal-content">
+        <button class="close-btn" onclick="closeUserEditModal()">❌CANCEL</button>
+        <h3>Edit User</h3>
+        <form id="editUserForm" method="POST">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="text" id="editUsername" name="username" placeholder="Username" required><br>
+          <input type="email" id="editEmail" name="email" placeholder="Email" required><br>
+          <input type="text" id="editMobile" name="mobilenumber" placeholder="Mobile Number" required><br>
+          <button type="submit">💾 Save</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- 🧩 YAHAN SE AAGE: Tournaments / Ads / Withdraws Sections
+         (jo tumne bheje the) ko Part-2 se replace karenge -->
+<!-- ---------- TOURNAMENTS SECTION ---------- -->
+<div id="tournaments" class="section" style="display:none;">
+  <h2>Tournaments</h2>
+
+  <button class="btn btn-add" onclick="openAddModal()">➕ Add Tournament</button>
+
+  <table>
+    <tr>
+      <th>Banner</th>
+      <th>Name</th>
+      <th>Location</th>
+      <th>Date</th>
+      <th>Fee</th>
+      <th>Prize</th>
+      <th>Players</th>
+      <th>Status</th>
+      <th>Action</th>
+    </tr>
+
+    {% for t in tournaments %}
+    <tr>
+      <td>
+        {% if t.image %}
+          <img src="{{ url_for('static', filename='uploads/' + t.image) }}"
+               style="width:80px;height:45px;border-radius:4px;object-fit:cover;">
+        {% else %}
+          <span style="font-size:12px;color:#999;">No Image</span>
+        {% endif %}
+      </td>
+
+      <td>{{ t.name }}</td>
+      <td>{{ t.location }}</td>
+      <td>{{ t.date }}</td>
+      <td>{{ t.entry_fee }}</td>
+      <td>{{ t.prize_pool }}</td>
+      <td>{{ t.current_players }} / {{ t.max_players }}</td>
+
+      <td>
+        {% if t.current_players >= t.max_players %}
+          <span style="color:red;">Closed</span>
+        {% else %}
+          <span style="color:lightgreen;">Open</span>
+        {% endif %}
+      </td>
+
+      <td>
+        <button class="btn btn-edit"
+          onclick="openTournamentEditModal(
+            '{{ t.id }}',
+            `{{ t.name }}`,
+            `{{ t.location }}`,
+            `{{ t.date }}`,
+            `{{ t.entry_fee }}`,
+            `{{ t.prize_pool }}`,
+            `{{ t.desc | e }}`
+        )">
+          Edit
+        </button>
+
+        <button class="btn btn-view" onclick="viewTournament({{ t.id }})">View</button>
+        <div id="tournamentDetailsPanel" 
+     style="display:none; background:#0d1628; padding:20px; border-radius:10px; margin-top:20px; color:white;">
+</div>
+
+
+        <form method="GET" action="{{ url_for('delete_tournament', id=t.id) }}" style="display:inline;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="btn btn-delete">Delete</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+
+  <div id="tournamentViewPanel"
+       style="display:none;background:#0d1628;padding:20px;border-radius:10px;margin-top:20px;">
+  </div>
+</div>
+<div id="resultsSection" class="section" style="display:none;">
+  <h2>Match Results</h2>
+
+  <table border="1" style="width:100%; color:white; background:#111;">
+    <tr>
+      <th>User</th>
+      <th>Kills</th>
+      <th>Rank</th>
+      <th>Screenshot</th>
+      <th>Action</th>
+    </tr>
+
+    {% for r in results %}
+    <tr>
+      <td>{{ r.user_id }}</td>
+      <td>{{ r.kills }}</td>
+      <td>{{ r.rank }}</td>
+      <td>
+        <img src="/static/results/{{ r.screenshot }}" style="width:120px;">
+      </td>
+      <td>
+        {% if not r.verified %}
+        <a href="/admin/verify_result/{{ r.id }}" style="color:yellow;">Verify</a>
+        {% else %}
+        ✔ Verified
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+
+
+{% for r in results %}
+    <div>
+        <img src="/static/screenshots/{{ r.screenshot }}" width="120">
+        <p>User: {{ users_dict[r.user_id].username }}</p>
+    </div>
+{% endfor %}
+
+
+<!-- ---------- ADS SECTION ---------- -->
+<div id="ads" class="section" style="display:none;">
+  <h1>Manage Ads</h1>
+
+  <form method="POST" action="/admin/add_ad">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <input type="text" name="title" placeholder="Ad Title" required>
+    <input type="text" name="desc" placeholder="Ad Description" required>
+    <input type="text" name="image_url" placeholder="Image URL" required>
+    <input type="text" name="link_url" placeholder="Redirect Link" >
+
+    <button type="submit">Add Ad</button>
+  </form>
+
+  <table style="margin-top:15px;width:100%;">
+    <tr>
+      <th>Image</th>
+      <th>Description</th>
+      <th>Link</th>
+      <th>Action</th>
+    </tr>
+
+    {% for ad in ads %}
+    <tr>
+      <td><img src="{{ ad.image_url }}" width="120"></td>
+      <td>{{ ad.desc }}</td>
+      <td><a href="{{ ad.link_url }}" target="_blank">{{ ad.link_url }}</a></td>
+
+      <td>
+        <a href="/admin/delete_ad/{{ ad.id }}" style="color:red;">Delete</a>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+
+<!-- ---------- WITHDRAW SECTION ---------- -->
+<div id="withdrawSection" class="section" style="display:none;">
+  <h2>Withdraw Requests</h2>
+
+  <table style="width:100%;background:#1e1e1e;border-radius:10px;">
+    <tr>
+      <th>User</th>
+      <th>Amount</th>
+      <th>Bank</th>
+      <th>IFSC</th>
+      <th>Status</th>
+      <th>Action</th>
+    </tr>
+
+    {% for w in withdraws %}
+    <tr>
+      <td>{{ w.user_id }}</td>
+      <td>₹{{ w.amount }}</td>
+      <td>{{ w.account_number }}</td>
+      <td>{{ w.ifsc }}</td>
+      <td>{{ w.status }}</td>
+
+      <td>
+        <a href="/admin/withdraw_approve/{{ w.id }}" style="color:lightgreen;">Approve</a>
+        <a href="/admin/withdraw_reject/{{ w.id }}" style="color:red;">Reject</a>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+
+<!-- ---------- ADD TOURNAMENT MODAL ---------- -->
+<div class="modal" id="addModal">
+  <div class="modal-content">
+    <button class="close-btn" onclick="closeModal('addModal')">×</button>
+    <h3>Add Tournament</h3>
+
+<form action="{{ url_for('add_tournament') }}" method="POST" enctype="multipart/form-data">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+  <!-- GAME (FIXED) -->
+  <label>Game</label>
+  <select id="gameSelect" name="game_name" required>
+    <option value="">Select Game</option>
+    <option value="BGMI">BGMI (Battleground Mobile India)</option>
+    <option value="FREE_FIRE">Free Fire</option>
+  </select>
+
+  <!-- MAP -->
+  <label>Map</label>
+  <select id="mapSelect" name="map_name" required>
+    <option value="">Select Map</option>
+    <option value="ERANGEL">Erangel</option>
+    <option value="LIVIK">Livik</option>
+    <option value="TDM">TDM</option>
+  </select>
+
+  <!-- MODE -->
+  <label>Mode</label>
+  <select id="modeSelect" name="mode" required>
+    <option value="">Select Mode</option>
+    <option value="solo">Solo</option>
+    <option value="duo">Duo</option>
+    <option value="squad">Squad</option>
+  </select>
+
+  <!-- AUTO VALUES -->
+  <label>Max Teams</label>
+  <input type="number" id="maxTeams" name="max_teams" readonly>
+
+  <label>Max Players</label>
+  <input type="number" id="maxPlayers" name="max_players" readonly>
+
+  <!-- GAME TYPE -->
+  <label>Perspective</label>
+  <select name="game_type" required>
+    <option value="TPP">TPP</option>
+    <option value="FPP">FPP</option>
+  </select>
+
+  <!-- TIME -->
+  <label>Start Time</label>
+  <input type="datetime-local" name="start_time" required>
+
+  <!-- ENTRY / PRIZE -->
+  <input type="text" name="entry_fee" placeholder="Entry Fee">
+  <input type="text" name="prize_pool" placeholder="Prize Pool">
+
+  <!-- DESC -->
+  <textarea name="desc" placeholder="Description"></textarea>
+
+  <!-- AUTO IMAGE -->
+  <input type="hidden" id="mapImage" name="image">
+
+  <button type="submit">Add Tournament</button>
+</form>
+
+  </div>
+</div>
+
+<!-- ---------- EDIT TOURNAMENT MODAL ---------- -->
+<div class="modal" id="editModal">
+  <div class="modal-content">
+  <button class="close-btn" onclick="closeModal('editModal')">×</button>
+  <h3>Edit Tournament</h3>
+
+  <form id="editTournamentForm" method="POST" enctype="multipart/form-data">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="tournament_id" id="editTournamentId">
+
+    <!-- GAME -->
+    <label>Game</label>
+    <select id="editGameSelect" name="game_name" required>
+      <option value="BGMI">BGMI (Battleground Mobile India)</option>
+      <option value="FREE_FIRE">Free Fire</option>
+    </select>
+
+    <!-- MAP -->
+    <label>Map</label>
+    <select id="editMapSelect" name="map_name" required>
+      <option value="ERANGEL">Erangel</option>
+      <option value="LIVIK">Livik</option>
+      <option value="TDM">TDM</option>
+    </select>
+
+    <!-- MODE -->
+    <label>Mode</label>
+    <select id="editModeSelect" name="mode" required>
+      <option value="solo">Solo</option>
+      <option value="duo">Duo</option>
+      <option value="squad">Squad</option>
+    </select>
+
+    <!-- AUTO VALUES -->
+    <label>Max Teams</label>
+    <input type="number" id="editMaxTeams" name="max_teams" readonly>
+
+    <label>Max Players</label>
+    <input type="number" id="editMaxPlayers" name="max_players" readonly>
+
+    <!-- GAME TYPE -->
+    <label>Perspective</label>
+    <select id="editGameType" name="game_type" required>
+      <option value="TPP">TPP</option>
+      <option value="FPP">FPP</option>
+    </select>
+
+    <!-- TIME -->
+    <label>Start Time</label>
+    <input type="datetime-local" id="editStartTime" name="start_time" required>
+
+    <!-- ENTRY / PRIZE -->
+    <input type="text" id="editEntryFee" name="entry_fee" placeholder="Entry Fee" value="{{entry_fee}}">
+    <input type="text" id="editPrizePool" name="prize_pool" placeholder="Prize Pool">
+
+    <!-- DESC -->
+    <textarea id="editDesc" name="desc" placeholder="Description"></textarea>
+
+    <!-- IMAGE -->
+    <input type="hidden" id="editMapImage" name="image">
+
+    <button type="submit">Update Tournament</button>
+  </form>
+</div>
+
+</div>
+
+</div>
+<script src="{{ url_for('static', filename='js/admin_page.js') }}"></script>
+</body>
+</html>
+

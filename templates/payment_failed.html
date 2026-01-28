@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Payment Failed</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- Lottie Animation -->
+<script src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"></script>
+
+<style>
+    body {
+        margin: 0;
+        padding: 0;
+        background: #0f0f0f;
+        font-family: 'Poppins', sans-serif;
+        color: #fff;
+        text-align: center;
+    }
+
+    .container {
+        margin-top: 60px;
+        animation: fadeIn 1.3s ease-in-out;
+    }
+
+    h1 {
+        font-size: 38px;
+        color: #ff4040;
+        text-shadow: 0 0 25px red;
+        margin-bottom: 5px;
+        font-weight: 800;
+    }
+
+    p {
+        font-size: 18px;
+        color: #ccc;
+    }
+
+    /* Countdown styling */
+    #countdown {
+        font-size: 40px;
+        font-weight: bold;
+        margin: 15px 0;
+        color: yellow;
+        text-shadow: 0 0 20px rgba(255,255,0,0.7);
+        animation: pulse 1s infinite alternate;
+    }
+
+    /* Buttons */
+    .btn {
+        display: inline-block;
+        padding: 12px 25px;
+        margin: 10px;
+        background: linear-gradient(45deg, #ffcc00, #ff8800);
+        color: #000;
+        font-size: 18px;
+        font-weight: bold;
+        border-radius: 10px;
+        text-decoration: none;
+        transition: 0.3s;
+        box-shadow: 0 0 15px rgba(255,255,0,0.4);
+    }
+
+    .btn:hover {
+        transform: scale(1.08);
+        box-shadow: 0 0 25px rgba(255,255,0,1);
+    }
+
+    /* Animations */
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(30px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes pulse {
+        from { opacity: 0.7; }
+        to { opacity: 1; }
+    }
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <!-- Premium Animation -->
+    <lottie-player 
+        src="https://lottie.host/4af5f9bd-8bad-41ea-abe9-79636a51613e/wN9hWjvLew.json"
+        background="transparent"
+        speed="1"
+        style="width: 250px; height: 250px; margin:auto;"
+        loop autoplay>
+    </lottie-player>
+
+    <h1>Payment Failed!</h1>
+    <p>Transaction could not be completed.<br>Please try again.</p>
+
+    <!-- Countdown -->
+    <div id="countdown">5</div>
+    <p>You will be redirected automatically.</p>
+
+    <!-- Buttons -->
+    <a href="{{ url_for('home') }}" class="btn">🏠 Go Home</a>
+
+    <form action="{{ url_for('retry_payment') }}" method="POST" style="display:inline;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn">🔁 Retry Payment</button>
+    </form>
+
+</div>
+
+<!-- ✅ Countdown + Auto Redirect Script -->
+<script>
+    let seconds = 5;
+
+    const timer = setInterval(() => {
+        seconds--;
+        document.getElementById('countdown').innerText = seconds;
+
+        if (seconds <= 0) {
+            clearInterval(timer);
+            window.location.href = "{{ url_for('profile') }}";  
+        }
+    }, 1000);
+</script>
+
+</body>
+</html>

@@ -1,0 +1,11 @@
+Flask
+Flask-SQLAlchemy
+Flask-Admin
+Flask-WTF
+Flask-Migrate
+Flask-Mail
+gunicorn
+apscheduler
+itsdangerous
+Werkzeug
+SQLAlchemy

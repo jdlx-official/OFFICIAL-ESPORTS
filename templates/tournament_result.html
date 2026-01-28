@@ -1,0 +1,23 @@
+<h2>Final Results — {{ t.name }}</h2>
+
+<table border="1" style="width:100%;color:white;text-align:center">
+    <tr>
+        <th>Position</th>
+        <th>Player</th>
+        <th>Kills</th>
+        <th>Rank</th>
+        <th>Points</th>
+        <th>Prize</th>
+    </tr>
+
+    {% for r in results %}
+    <tr>
+        <td>{{ loop.index }}</td>
+        <td>{{ users[r.user_id].username }}</td>
+        <td>{{ r.kills }}</td>
+        <td>{{ r.rank }}</td>
+        <td>{{ r.points }}</td>
+        <td>₹{{ r.prize }}</td>
+    </tr>
+    {% endfor %}
+</table>

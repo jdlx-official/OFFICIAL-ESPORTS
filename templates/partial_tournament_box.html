@@ -1,0 +1,17 @@
+<div>
+  <h2>{{ t.name }}</h2>
+
+  <div class="details-item"><b>Description:</b> {{ t.desc }}</div>
+  <div class="details-item"><b>Location:</b> {{ t.location }}</div>
+  <div class="details-item"><b>Date:</b> {{ t.date }}</div>
+  <div class="details-item"><b>Entry Fee:</b> {{ t.entry_fee }}</div>
+  <div class="details-item"><b>Prize:</b> {{ t.prize_pool }}</div>
+  <div class="details-item"><b>Players:</b> {{ t.current_players }} / {{ t.max_players }}</div>
+
+  <form method="POST" action="/join_tournament/{{ t.id }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button style="padding:10px;margin-top:15px;width:100%;background:#ffdd00;border:none;border-radius:10px;font-weight:600;">
+      Join Tournament
+    </button>
+  </form>
+</div>

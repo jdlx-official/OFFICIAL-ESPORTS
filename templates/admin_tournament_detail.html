@@ -1,0 +1,227 @@
+<div style="padding:20px; color:white;">
+
+    <h2>{{ t.name }}</h2>
+    <img src="{{ url_for('static', filename='uploads/' + t.image) }}"
+         style="width:100%; max-height:250px; object-fit:cover; border-radius:10px;">
+
+    <hr style="border-color:#444; margin:15px 0;">
+
+    <h3>📌 Tournament Information</h3>
+    <p><b>Description:</b> {{ t.desc }}</p>
+    <p><b>Location:</b> {{ t.location }}</p>
+    <p><b>Date:</b> {{ t.date }}</p>
+    <p><b>Entry Fee:</b> {{ t.entry_fee }}</p>
+    <p><b>Prize Pool:</b> {{ t.prize_pool }}</p>
+    <p><b>Status:</b> {{ t.status }}</p>
+    <p><b>Players Joined:</b> {{ t.current_players }} / {{ t.max_players }}</p>
+
+    <hr style="border-color:#444; margin:15px 0;">
+
+    <h3>🔐 Room Details</h3>
+    <form action="/admin/update_room/{{ t.id }}" method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        
+        <label>Room ID</label>
+        <input type="text" name="room_id" value="{{ t.room_id }}" required>
+
+        <label>Password</label>
+        <input type="text" name="room_password" value="{{ t.room_password }}" required>
+
+        <button class="btn btn-edit">Update</button>
+    </form>
+
+    <hr style="border-color:#444; margin:15px 0;">
+
+    <h3>Registered Teams</h3>
+
+<table>
+  <tr>
+    <th>Team Name</th>
+    <th>Captain</th>
+    <th>Email</th>
+    <th>Mode</th>
+    <th>Map</th>
+  </tr>
+
+  {% for r in registrations %}
+  <tr>
+    <td>{{ r.team_name }}</td>
+    <td>{{ r.captain_name }}</td>
+    <td>{{ r.captain_email }}</td>
+    <td>{{ r.mode }}</td>
+    <td>{{ r.map }}</td>
+  </tr>
+  {% endfor %}
+</table>
+
+
+<h3>Joined Users</h3>
+<table>
+<tr>
+  <th>Name</th><th>BGMI ID</th><th>Email</th><th>Phone</th><th>Status</th>
+</tr>
+
+{% for p in participants %}
+<tr>
+  <td>{{ p.username }}</td>
+  <td>{{ p.bgmi_id }}</td>
+  <td>{{ p.email }}</td>
+  <td>{{ p.phone }}</td>
+  <td>{{ p.status }}</td>
+</tr>
+{% endfor %}
+</table>
+
+<h3>Match Results</h3>
+<table>
+<tr>
+ <th>Player</th><th>Kills</th><th>Rank</th><th>Screenshot</th>
+</tr>
+{% for p in participants %}
+<tr>
+ <td>{{ p.username }}</td>
+ <td>{{ p.result_kills }}</td>
+ <td>{{ p.result_rank }}</td>
+ <td>
+   {% if p.screenshot %}
+   <img src="/static/results/{{ p.screenshot }}" width="100">
+   {% endif %}
+ </td>
+</tr>
+{% endfor %}
+</table>
+
+<h3>Joined Participants</h3>
+
+<table border="1" style="width:100%;color:white">
+    <tr>
+        <th>Team Name</th>
+        <th>Captain</th>
+        <th>Players</th>
+        <th>Phone</th>
+        <th>Email</th>
+        <th>Joined At</th>
+    </tr>
+
+    {% for p in participants %}
+    <tr>
+        <td>{{ p.team_name }}</td>
+        <td>{{ p.captain_name }} ({{ p.captain_bgmi_id }})</td>
+        <td>
+            {{ p.captain_name }} ({{ p.captain_bgmi_id }})<br>
+            {% if p.p2_name %} {{ p.p2_name }} ({{ p.p2_id }}) <br>{% endif %}
+            {% if p.p3_name %} {{ p.p3_name }} ({{ p.p3_id }}) <br>{% endif %}
+            {% if p.p4_name %} {{ p.p4_name }} ({{ p.p4_id }}) <br>{% endif %}
+        </td>
+        <td>{{ p.phone }}</td>
+        <td>{{ p.email }}</td>
+        <td>{{ p.joined_at }}</td>
+    </tr>
+    <a href="/admin/download_joined/{{ t.id }}" class="btn">Download Joined List PDF</a>
+
+    {% endfor %}
+</table>
+<h3>Match Results</h3>
+
+<table border="1" style="width:100%;color:white">
+    <tr>
+        <th>Team</th>
+        <th>Screenshot</th>
+        <th>Kills</th>
+        <th>Rank</th>
+        <th>Points</th>
+        <th>Verify</th>
+    </tr>
+
+    {% for r in results %}
+    <tr>
+        <td>{{ users_dict[r.user_id].username }}</td>
+
+        <td><img src="/static/screenshots/{{ r.screenshot }}" width="120"></td>
+
+        <form action="/admin/verify_result/{{ r.id }}" method="POST">
+            <td><input type="number" name="kills" value="{{ r.kills }}"></td>
+            <td><input type="number" name="rank" value="{{ r.rank }}"></td>
+            <td>{{ r.points }}</td>
+            <td>
+                {% if r.verified %}
+                    ✔ Verified
+                {% else %}
+                    <button type="submit">Verify</button>
+                {% endif %}
+            </td>
+        </form>
+    </tr>
+    {% endfor %}
+</table>
+
+
+    <h3>👥 Participants ({{ participants|length }})</h3>
+
+{% if participants %}
+📥 Download Players List (PDF)
+
+    <button class="btn btn-add" 
+            onclick="window.location.href='/admin/download_players/{{ t.id }}'">
+        📥 Download Players List (PDF)
+    </button>
+
+    <table style="width:100%; margin-top:10px; background:#111; border-radius:10px;">
+        <tr>
+            <th>User ID</th>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Joined At</th>
+        </tr>
+
+        {% for p in participants %}
+        {% set user = users_dict[p.user_id] %}
+        <tr>
+            <td>{{ user.id }}</td>
+            <td>{{ user.username }}</td>
+            <td>{{ user.email }}</td>
+            <td>{{ p.joined_at }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+
+{% else %}
+    <p>No players joined yet.</p>
+{% endif %}
+
+
+    <hr style="border-color:#444; margin:15px 0;">
+
+    <h3>🏆 Match Results</h3>
+    {% if results %}
+        {% for r in results %}
+            <div style="background:#111; padding:10px; margin-bottom:10px; border-radius:10px;">
+                <p><b>User:</b> {{ r.user_id }}</p>
+                <p><b>Kills:</b> {{ r.kills }}</p>
+                <p><b>Rank:</b> {{ r.rank }}</p>
+                <img src="/static/results/{{ r.screenshot }}" width="180">
+
+                {% if not r.verified %}
+                    <a href="/admin/verify_result/{{ r.id }}" style="color:yellow;">Verify</a>
+                {% else %}
+                    ✔ Verified
+                {% endif %}
+            </div>
+        {% endfor %}
+    {% else %}
+        <p>No match results uploaded yet.</p>
+    {% endif %}
+
+    <hr style="border-color:#444; margin:15px 0;">
+
+    <h3>⚠️ Cancel Tournament</h3>
+    <a href="/admin/cancel_tournament/{{ t.id }}" style="color:red; font-size:18px;">
+        ❌ Cancel This Tournament
+    </a>
+
+    <hr>
+
+    <button onclick="document.getElementById('tournamentDetailsPanel').style.display='none'"
+            class="btn btn-delete">Close</button>
+
+</div>

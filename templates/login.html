@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login - OFFICIAL ESPORTS</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: "Segoe UI", sans-serif;
+      background: linear-gradient(135deg, #0d0d0d, #1a1a1a);
+      color: #fff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    .auth-container {
+      background: #1c1c1c;
+      padding: 30px;
+      border-radius: 16px;
+      box-shadow: 0 0 25px rgba(255, 0, 0, 0.4);
+      width: 100%;
+      max-width: 400px;
+      text-align: center;
+    }
+
+    .auth-container h2 {
+      margin-bottom: 20px;
+      color: #ff3b3b;
+    }
+
+    .auth-container input {
+      width: 90%;
+      padding: 12px;
+      margin: 10px 0;
+      border: none;
+      border-radius: 8px;
+      background: #2a2a2a;
+      color: #fff;
+      font-size: 16px;
+      outline: none;
+    }
+
+    .auth-container input:focus {
+      box-shadow: 0 0 10px #ff3b3b;
+    }
+
+    .auth-container button {
+      background: #ff3b3b;
+      border: none;
+      color: white;
+      font-size: 16px;
+      padding: 12px;
+      margin-top: 10px;
+      border-radius: 8px;
+      cursor: pointer;
+      width: 95%;
+      transition: 0.3s ease-in-out;
+    }
+
+    .auth-container button:hover {
+      background: #ff5555;
+      box-shadow: 0 0 10px #ff3b3b;
+    }
+
+    .auth-footer {
+      margin-top: 15px;
+      font-size: 14px;
+    }
+
+    .auth-footer a {
+      color: #ff3b3b;
+      text-decoration: none;
+      font-weight: bold;
+    }
+
+    .auth-footer a:hover {
+      text-decoration: underline;
+    }
+    .password-container{
+      position: relative;
+      width: 96%;
+      max-width: 350%;
+      display: flex;
+      margin-left: 2%;
+    }
+    .password-container input{
+      width: 100%;
+      padding: 12px 40px 12px 12px;/* right padding for icon space*/
+      border: none;
+      border-radius: 8px;
+      background: #2a2a2a;
+      color: white;
+      font-size: 14px;
+    
+    }
+    .password-container .toggle-password{
+      position: absolute;
+      right: 12px;
+      top:50%;
+      transform: translateY(-50%);
+      cursor: pointer;
+      font-size: 18px;
+      color:#0C090A;
+      background: white;
+      border: none;
+      border-radius: 10px;
+    padding: 5px;
+    }
+    .password-container .toggle-password:hover{
+      color: yellow;
+      background: black;
+
+    }
+    /* FLASH MESSAGE STYLES */
+#flash-messages {
+  position: fixed;
+  top: 70px;
+  right: 20px;
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.flash-message {
+  padding: 12px 16px;
+  border-radius: 10px;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+  animation: fadeInOut 4s ease forwards;
+}
+
+.flash-message.success {
+  background-color: #00c853;
+  color: white;
+}
+
+.flash-message.error {
+  background-color: rgb(38, 38, 38);
+  color: white;
+}
+
+.flash-message.info {
+  background-color: #0288d1;
+  color: white;
+}
+
+@keyframes fadeInOut {
+  0% { opacity: 0; transform: translateY(-10px); }
+  10% { opacity: 1; transform: translateY(0); }
+  90% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-10px); }
+}
+
+  </style>
+</head>
+<body>
+   <!-- ====== NAVBAR ====== -->
+  <header class="navbar">
+      <!-- FLASH MESSAGES -->
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div id="flash-messages">
+        {% for category, message in messages %}
+          <div class="flash-message {{ category }}">
+            {{ message }}
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+</header>
+
+  <div class="auth-container">
+    <h2>Login</h2>
+
+    <!-- Flask form submit -->
+    <form method="post" action="{{ url_for('login') }}">
+      
+       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="text" name="username" placeholder="Username / Gmail / Mobile Number" required>
+      <div class="password-container">
+  <input type="password" id="password" name="password" placeholder="Enter Password" required pattern="^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$"
+          title="Password must be at least 8 characters long, include 1 uppercase letter, 1 number, and 1 special character.">
+  <span  class="toggle-password" onclick="togglePassword('password')">show</span>
+</div>
+
+<script>
+  function togglePassword(fieldId) {
+    const input = document.getElementById(fieldId);
+    const icon = input.nextElementSibling;
+
+    if (input.type === "password") {
+      input.type = "text";
+      icon.textContent = "Hide🙈"; // change icon to hide
+    } else {
+      input.type = "password";
+      icon.textContent = "Show👁️"; // change icon to show
+    }
+  }
+</script>
+
+      <button type="submit">Login</button>
+    </form>
+    <p style="text-align:center; margin-top:10px;">
+  <a href="{{ url_for('forgot_password') }}" style="color:#00ffc3;">Forgot Password?</a>
+</p>
+
+
+    <div class="auth-footer">
+      New here? <a href="{{ url_for('signup') }}">Create New Account</a>
+    </div>
+  </div>
+  <script>
+import { useNavigate } from "react-router-dom";
+
+function Login() {
+  const navigate = useNavigate();
+
+  const handleLogin = async (e) => {
+    e.preventDefault();
+
+    const res = await fetch("/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password })
+    });
+
+    const data = await res.json();
+
+    if (res.ok) {
+      // login success hone ke baad home page pe redirect
+      navigate("/home");
+    } else {
+      alert(data.msg);
+    }
+  };
+
+  return (
+    <form onSubmit={handleLogin}>
+      {/* login fields */}
+    </form>
+  );
+  
+}
+</script>
+</body>
+</html>

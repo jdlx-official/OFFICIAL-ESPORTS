@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&display=swap');
+
+:root {
+    --yellow: #fdd835;
+    --black: #0a0a0a;
+    --gray: #1c1c1c;
+}
+
+body {
+    background-color: var(--black);
+    color: var(--yellow);
+    font-family: 'Orbitron', sans-serif;
+    height: 100vh;
+    margin: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+}
+
+.error-container {
+    text-align: center;
+    position: relative;
+}
+
+.glitch-text {
+    font-size: 140px;
+    font-weight: 700;
+    color: var(--yellow);
+    position: relative;
+    animation: glitch 1s infinite;
+    text-shadow:
+        2px 2px 5px rgba(255, 255, 0, 0.2),
+        -2px -2px 5px rgba(255, 255, 0, 0.2);
+}
+
+@keyframes glitch {
+    0% { transform: translate(0); }
+    20% { transform: translate(-2px, 2px); }
+    40% { transform: translate(2px, -2px); }
+    60% { transform: translate(-2px, -2px); }
+    80% { transform: translate(2px, 2px); }
+    100% { transform: translate(0); }
+}
+
+h2 {
+    margin-top: -20px;
+    font-size: 24px;
+    letter-spacing: 2px;
+}
+
+p {
+    color: #ccc;
+    margin: 10px 0 30px;
+    font-size: 14px;
+}
+
+.back-btn {
+    display: inline-block;
+    background: var(--yellow);
+    color: var(--black);
+    padding: 10px 25px;
+    border-radius: 50px;
+    text-decoration: none;
+    font-weight: 700;
+    transition: all 0.3s ease-in-out;
+}
+
+.back-btn:hover {
+    background: #fff176;
+    transform: scale(1.1);
+}
+
+/* ⚙️ Animated Gears */
+.gears {
+    position: absolute;
+    bottom: -80px;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.gear {
+    width: 60px;
+    height: 60px;
+    border: 6px solid var(--yellow);
+    border-radius: 50%;
+    position: absolute;
+    animation: spin 4s linear infinite;
+}
+
+.gear::before,
+.gear::after {
+    content: "";
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    background: var(--yellow);
+    border-radius: 2px;
+}
+
+.gear::before { top: -8px; left: 50%; transform: translateX(-50%); }
+.gear::after { bottom: -8px; left: 50%; transform: translateX(-50%); }
+
+.gear.one { left: -90px; animation-delay: 0s; }
+.gear.two { left: 0; animation-delay: 0.2s; width: 70px; height: 70px; }
+.gear.three { left: 90px; animation-delay: 0.4s; }
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+</style>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>500 | Internal Server Error</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/error500.css') }}">
+</head>
+<body>
+    <div class="error-container">
+        <div class="glitch-text" data-text="500">500</div>
+        <h2>Internal Server Error</h2>
+        <p>Something went wrong on our side. Don’t worry, our team is on it ⚙️</p>
+        <a href="{{ url_for('home') }}" class="back-btn">Back to Home</a>
+
+        <div class="gears">
+            <div class="gear one"></div>
+            <div class="gear two"></div>
+            <div class="gear three"></div>
+        </div>
+    </div>
+
+    <script>
+        // Optional subtle glowing animation
+        document.addEventListener("mousemove", (e) => {
+            const root = document.documentElement;
+            root.style.setProperty("--x", e.clientX + "px");
+            root.style.setProperty("--y", e.clientY + "px");
+        });
+    </script>
+</body>
+</html>

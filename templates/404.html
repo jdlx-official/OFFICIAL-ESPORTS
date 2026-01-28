@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+    <style>
+        body {
+  margin: 0;
+  background: #0b0b0b;
+  color: #f1c40f;
+  font-family: 'Orbitron', sans-serif;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.error-container {
+  text-align: center;
+  position: relative;
+  animation: fadeIn 1s ease-out forwards;
+}
+
+.error-code {
+  font-size: 8rem;
+  letter-spacing: 10px;
+  text-shadow: 0 0 20px rgba(255, 255, 0, 0.4);
+  animation: glitch 1.5s infinite;
+}
+
+h1 {
+  font-size: 2rem;
+  margin: 0.5rem 0;
+}
+
+.message {
+  font-size: 1rem;
+  color: #ccc;
+  margin-bottom: 2rem;
+}
+
+.home-btn {
+  text-decoration: none;
+  color: #0b0b0b;
+  background: linear-gradient(90deg, #f1c40f, #f39c12);
+  padding: 12px 25px;
+  border-radius: 8px;
+  font-weight: bold;
+  box-shadow: 0 0 10px #f1c40f;
+  transition: all 0.3s ease;
+}
+
+.home-btn:hover {
+  box-shadow: 0 0 25px #f1c40f;
+  transform: scale(1.05);
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(30px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes glitch {
+  0%, 100% { text-shadow: 2px 2px #000, -2px -2px #f1c40f; }
+  50% { text-shadow: -2px 2px #f1c40f, 2px -2px #000; }
+}
+</style>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>404 – Not Found</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/error.css') }}">
+</head>
+<body>
+  <div class="error-container">
+    <div class="error-code">404</div>
+    <h1>Page Not Found</h1>
+    <p class="message">Looks like you got lost in the arena 🕹️</p>
+    <a href="{{ url_for('home') }}" class="home-btn">Return Home</a>
+  </div>
+</body>
+</html>

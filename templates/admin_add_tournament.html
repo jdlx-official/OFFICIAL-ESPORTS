@@ -1,0 +1,67 @@
+<h2>Add BGMI Tournament</h2>
+
+<form action="/add_tournament" method="POST" enctype="multipart/form-data">
+<input type="hidden" id="duration" name="duration">
+
+    <!-- FIXED GAME -->
+    <label>Game:</label>
+    <select name="game" id="gameSelect" required>
+        <option value="BGMI">BGMI (Battleground Mobile India)</option>
+    </select>
+
+    <!-- MAP -->
+    <label>Map:</label>
+    <select name="map" id="mapSelect" onchange="updateMapLogic()" required>
+        <option value="Erangel">Erangel</option>
+        <option value="Livik">Livik</option>
+        <option value="TDM">TDM / Arena</option>
+    </select>
+
+    <!-- MODE -->
+    <label>Mode:</label>
+    <select name="mode" id="modeSelect" onchange="updateMapLogic()" required>
+        <option value="Squad">Squad</option>
+        <option value="Duo">Duo</option>
+        <option value="Solo">Solo</option>
+    </select>
+
+    <!-- GAME TYPE -->
+    <label>Game Type:</label>
+    <select name="type" required>
+        <option value="TPP">TPP</option>
+        <option value="FPP">FPP</option>
+    </select>
+
+    <!-- AUTO MAX PLAYERS -->
+    <label>Max Players:</label>
+    <input type="number" id="maxPlayers" name="max_players" readonly required>
+
+    <!-- AUTO MAX TEAMS -->
+    <label>Max Teams:</label>
+    <input type="number" id="maxTeams" name="max_teams" readonly required>
+
+    <!-- IMAGE AUTO -->
+    <label>Map Image (AUTO):</label>
+    <input type="text" id="mapImage" name="image" readonly>
+
+    <!-- DATE & TIME -->
+    <label>Start Time:</label>
+    <input type="datetime-local" name="start_time" required>
+
+    <!-- ENTRY -->
+    <label>Entry Fee:</label>
+    <input type="number" name="entry_fee" required>
+
+    <!-- PRIZE -->
+    <label>Prize Pool:</label>
+    <input type="number" name="prize_pool" required>
+
+    <!-- DESCRIPTION -->
+    <label>Description:</label>
+    <textarea name="desc"></textarea>
+
+    <button type="submit">Create Tournament</button>
+
+</form>
+
+<script src="{{ url_for('static', filename='js/tournament_logic.js') }}"></script>

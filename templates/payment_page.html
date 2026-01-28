@@ -1,0 +1,10 @@
+<form id="payuForm" action="{{ payu_url }}" method="post">
+    {% for key, value in data.items() %}
+    <input type="hidden" name="{{key}}" value="{{value}}">
+    {% endfor %}
+    <input type="hidden" name="hash" value="{{ hashh }}">
+</form>
+
+<script>
+document.getElementById("payuForm").submit();
+</script>
